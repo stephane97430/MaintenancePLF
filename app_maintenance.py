@@ -56,7 +56,7 @@ def to_excel(df):
     return output.getvalue()
 
 def compress_image(image_file):
-    """Compresse l'image pour un stockage ultra-léger (format JPEG qualité 30%)."""
+    """Compresse l'image pour un stockage ultra-léger (format JPEG qualité 80%)."""
     img = Image.open(image_file)
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
