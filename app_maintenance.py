@@ -61,7 +61,7 @@ def compress_image(image_file):
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=30, optimize=True)
+    img.save(buffer, format="JPEG", quality=80, optimize=True)
     return buffer.getvalue()
 
 def selecteur_ligne_machine_harmonise(prefixe, ligne_defaut=None, machine_defaut=None, inclure_toutes=True):
