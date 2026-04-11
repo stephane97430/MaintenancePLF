@@ -245,40 +245,30 @@ if st.session_state["authentication_status"]:
             
         st.download_button("📥 Télécharger Excel (Données)", data=to_excel(df_hist), file_name="historique_plf.xlsx")
 
-  # --- GESTION DAT MODIFIÉ POUR INCLURE FERMETURE ---
-with t_liste:
-    # Afficher les demandes actuelles
-    df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
-    
-    if not df_dat.empty:
-        st.subheader("📋 Liste des Demandes d'Actions Techniques")
-        for index, row in df_dat.iterrows():
-            with st.expander(f"🔧 {row['date_creation']} - {row['demandeur']} - {row['ligne']} ({row['statut']})"):
-                st.write(f"**Urgence :** {row['urgence']}")
-                st.write(f"**Action demandée :** {row['action']}")
-                st.write(f"**Commentaire :** {row['commentaire']}")
-                # Ajouter un bouton pour fermer une DAT
-                if row['statut'] != "Fermée":
-                    if st.button(f"✅ Fermer la DAT {row['id']}", key=f"close_dat_{row['id']}"):
-                        c.execute("UPDATE dat SET statut='Fermée' WHERE id=?", (row['id'],))
-                        conn.commit()
-                        st.success(f"DAT {row['id']} fermée.")
-                        st.rerun()
-    else:
-        st.info("Aucune demande trouvée.")
-
-    # Statistiques
-    total_dat = c.execute("SELECT COUNT(*) FROM dat").fetchone()[0]
-    closed_dat = c.execute("SELECT COUNT(*) FROM dat WHERE statut = 'Fermée'").fetchone()[0]
-    
-    if total_dat > 0:
-        taux_fermeture = (closed_dat / total_dat) * 100
-        st.metric("Taux de fermeture des DAT (%)", f"{taux_fermeture:.2f}%")
-    else:
-        st.metric("Taux de fermeture des DAT (%)", "N/A")
-    
-    st.write(f"📊 Total des DAT : {total_dat}")
-    st.write(f"✅ DAT Fermées : {closed_dat}")
+    # --- D. GESTION DAT ---
+    elif menu == "📝 Gestion DAT":
+        st.header("📝 Demandes d'Actions Techniques")
+        t_crea, t_liste = st.tabs(["➕ Créer une DAT", "📋 Liste des demandes"])
+        with t_crea:
+            col1, col2 = st.columns(2)
+            with col1:
+                d_ligne, d_mach = selecteur_ligne_machine_harmonise("dat_crea", inclure_toutes=False)
+                d_demandeur = st.text_input("Nom du demandeur", value=user_full_name)
+                d_urgence = st.selectbox("Niveau d'urgence", ["Basse", "Moyenne", "Haute", "CRITIQUE"])
+            with col2:
+                d_action = st.text_area("Action demandée détaillée")
+                d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
+            if st.button("Soumettre la DAT"):
+                c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
+                          VALUES (?,?,?,?,?,?,?,?)""", (str(datetime.now().date()), d_demandeur, d_ligne, d_mach, d_urgence, d_action, "Ouvert", user_id))
+                conn.commit()
+                st.success("DAT enregistrée !")
+        with t_liste:
+            df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
+            edited_dat = st.data_editor(df_dat, use_container_width=True, num_rows="dynamic" if is_admin else "fixed")
+            if st.button("Sauvegarder les modifications DAT"):
+                edited_dat.to_sql("dat", conn, if_exists="replace", index=False)
+                st.success("Données synchronisées.")
 
     # --- E. STATISTIQUES ---
     elif menu == "📈 Statistiques":
