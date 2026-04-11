@@ -333,32 +333,6 @@ elif st.session_state["authentication_status"]:
                         c.execute("INSERT OR REPLACE INTO stocks (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) VALUES (?,?,?,?,?)", (c_mag, c_ref, c_des, c_qte, c_mini))
                         conn.commit()
                         st.rerun()                     
-
-        with tab_import:
-            st.subheader("📥 Mise à jour massive via Excel")
-            st.info("Le fichier Excel doit contenir les colonnes exactes : **code_magasin**, **ref_constructeur**, **designation**, **quantite_reelle**, **stock_mini**.")
-
-            file = st.file_uploader("Choisir un fichier Excel", type=["xlsx"])  
-            if file:
-                df_import = pd.read_excel(file)
-                st.write("Aperçu des données à importer :")
-                st.dataframe(df_import.head())
-            
-            if st.button("Confirmer l'importation"):
-                try:
-                    # On insère les données une par une pour utiliser 'INSERT OR REPLACE'
-                    for _, row in df_import.iterrows():
-                        c.execute("""INSERT OR REPLACE INTO stocks 
-                                  (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) 
-                                  VALUES (?,?,?,?,?)""", 
-                                  (str(row['code_magasin']), str(row['ref_constructeur']), 
-                                   str(row['designation']), int(row['quantite_reelle']), 
-                                   int(row['stock_mini'])))
-                    conn.commit()
-                    st.success(f"✅ {len(df_import)} références mises à jour avec succès !")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erreur lors de l'import : {e}")
   
     # --- F. CONFIGURATION (ADMIN) ---
     elif menu == "⚙️ Configuration":
