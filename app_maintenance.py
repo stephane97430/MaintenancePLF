@@ -53,7 +53,7 @@ def envoyer_alerte_dat(ligne, machine, action):
     # Configuration (À adapter avec vos accès)
     sender_email = "latchoumanestephane@gmail.com"
     receiver_email = "stephane_latchoumane@cilam.com"
-    password = "21061983vernon"
+    password = "GMAO"
 
     msg = MIMEText(f"URGENCE CRITIQUE sur la ligne {ligne}\nMachine : {machine}\n\nAction demandée : {action}")
     msg['Subject'] = f"⚠️ ALERTE DAT CRITIQUE - {machine}"
