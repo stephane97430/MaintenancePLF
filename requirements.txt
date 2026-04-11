@@ -4,3 +4,4 @@ plotly
 streamlit-authenticator
 Pillow
 xlsxwriter
+openpyxl
