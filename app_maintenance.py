@@ -153,17 +153,7 @@ if st.session_state["authentication_status"]:
             conn.commit()
             st.success("✅ Intervention enregistrée avec succès !")
             st.query_params.clear()
-# --- Logique Stock ---
-remarque_clean = remarque.lower()
-# On récupère toutes les pièces enregistrées en stock
-pieces_en_stock = c.execute("SELECT nom_piece, quantite FROM stocks").fetchall()
 
-for piece, qte_actuelle in pieces_en_stock:
-    if piece.lower() in remarque_clean:
-        nouvelle_qte = qte_actuelle - 1
-        c.execute("UPDATE stocks SET quantite = ? WHERE nom_piece = ?", (nouvelle_qte, piece))
-        st.info(f"📦 Stock mis à jour : {piece} ({qte_actuelle} -> {nouvelle_qte})")
-conn.commit()
     # --- B. PLAN DE PRÉVENTIF ---
     elif menu == "📅 Plan de Préventif":
         st.header("📋 Planning de Maintenance Préventive")
