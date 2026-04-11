@@ -46,6 +46,26 @@ except sqlite3.OperationalError:
 conn.commit()
 
 # --- 3. FONCTIONS UTILITAIRES ---
+import smtplib
+from email.mime.text import MIMEText
+
+def envoyer_alerte_dat(ligne, machine, action):
+    # Configuration (À adapter avec vos accès)
+    sender_email = "latchoumanestephane@gmail.com"
+    receiver_email = "stephane_latchoumane@cilam.com"
+    password = "21061983"
+
+    msg = MIMEText(f"URGENCE CRITIQUE sur la ligne {ligne}\nMachine : {machine}\n\nAction demandée : {action}")
+    msg['Subject'] = f"⚠️ ALERTE DAT CRITIQUE - {machine}"
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, password)
+            server.sendmail(sender_email, receiver_email, msg.as_string())
+    except Exception as e:
+        st.error(f"Erreur d'envoi mail : {e}")
 def get_config(type_cfg):
     res = c.execute("SELECT nom FROM config WHERE type=?", (type_cfg,)).fetchall()
     return [r[0] for r in res]
