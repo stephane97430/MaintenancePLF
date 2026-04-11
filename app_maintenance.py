@@ -316,13 +316,7 @@ elif st.session_state["authentication_status"]:
         tab_inv, tab_add = st.tabs(["📋 Inventaire & Alertes", "➕ Entrée Stock / Nouvelle Réf"])
         with tab_inv:
             df_s = pd.read_sql("SELECT * FROM stocks", conn)
-            if not df_s.empty:
-st.download_button(
-                label="📥 Exporter l'inventaire actuel en Excel",
-                data=to_excel(df_s),
-                file_name=f"inventaire_cilam_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )                
+            if not df_s.empty:               
                 st.dataframe(df_s, use_container_width=True)
                 alertes = df_s[df_s['quantite_reelle'] <= df_s['stock_mini']]
                 if not alertes.empty: st.warning(f"⚠️ {len(alertes)} références critiques !")
