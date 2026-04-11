@@ -194,6 +194,9 @@ if st.session_state["authentication_status"]:
                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", 
                       (str(date_int), type_int, duree, ligne, machine, ", ".join(techs), statut, prob, sol, remarque, user_id, img_blob))          
             conn.commit()
+            logs_stock = deduire_stock_automatique(remarque)
+            for log in logs_stock:
+                st.info(log) 
             st.success("✅ Intervention enregistrée avec succès !")
             st.query_params.clear()
 
