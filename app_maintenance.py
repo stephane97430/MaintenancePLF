@@ -287,8 +287,8 @@ if st.session_state["authentication_status"]:
                 conn.commit()
                 st.success("DAT enregistrée !")
             if d_urgence == "CRITIQUE":
-    envoyer_alerte_dat(d_ligne, d_mach, d_action)
-    st.warning("📧 Email d'alerte envoyé au responsable.")  
+                envoyer_alerte_dat(d_ligne, d_mach, d_action)
+                st.warning("📧 Email d'alerte envoyé au responsable.")  
         with t_liste:
             df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
             edited_dat = st.data_editor(df_dat, use_container_width=True, num_rows="dynamic" if is_admin else "fixed")
