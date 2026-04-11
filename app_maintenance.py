@@ -151,6 +151,53 @@ if st.session_state["authentication_status"] is None or st.session_state["authen
         st.error("Identifiant ou mot de passe incorrect")
 
 # --- 5. LOGIQUE PRINCIPALE ---
+elif menu == "📦 Gestion des Stocks":
+        st.header("📦 Gestion du Magasin Pièces Rechange")
+        
+        tab_inv, tab_add = st.tabs(["📋 Inventaire & Alertes", "➕ Entrée Stock / Nouvelle Réf"])
+        
+        with tab_inv:
+            df_s = pd.read_sql("SELECT * FROM stocks", conn)
+            
+            if not df_s.empty:
+                # Calcul des alertes
+                def highlight_low_stock(row):
+                    return ['background-color: #ffcccc' if row.quantite_reelle <= row.stock_mini else '' for _ in row]
+
+                st.subheader("État des stocks")
+                st.dataframe(df_s.style.apply(highlight_low_stock, axis=1), use_container_width=True)
+                
+                # Indicateurs rapides
+                alertes = df_s[df_s['quantite_reelle'] <= df_s['stock_mini']]
+                if not alertes.empty:
+                    st.warning(f"⚠️ {len(alertes)} références sont sous le seuil critique !")
+            else:
+                st.info("Le magasin est vide.")
+
+        with tab_add:
+            st.subheader("Ajouter ou Modifier une référence")
+            with st.form("form_stock"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    c_mag = st.text_input("Code Magasin (ex: M001)")
+                    c_ref = st.text_input("Référence Constructeur")
+                    c_des = st.text_input("Désignation")
+                with col2:
+                    c_qte = st.number_input("Quantité Réelle", min_value=0, step=1)
+                    c_mini = st.number_input("Stock Mini (Alerte)", min_value=0, step=1)
+                
+                submit_s = st.form_submit_button("Enregistrer en base")
+                
+                if submit_s:
+                    if c_mag and c_des:
+                        c.execute('''INSERT OR REPLACE INTO stocks 
+                                     (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) 
+                                     VALUES (?,?,?,?,?)''', (c_mag, c_ref, c_des, c_qte, c_mini))
+                        conn.commit()
+                        st.success(f"Référence {c_des} mise à jour.")
+                        st.rerun()
+                    else:
+                        st.error("Le Code Magasin et la Désignation sont obligatoires.")
 if st.session_state["authentication_status"]:
     user_full_name = st.session_state["name"]
     user_id = st.session_state["username"]
