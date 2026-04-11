@@ -310,19 +310,36 @@ elif st.session_state["authentication_status"]:
                     mtbf = df_curatif.dropna(subset=['diff']).groupby('machine')['diff'].mean().reset_index()
                     st.plotly_chart(px.bar(mtbf, x='machine', y='diff', title="MTBF (Jours)"), use_container_width=True)
 
-    # --- F. GESTION DES STOCKS ---
+# --- F. GESTION DES STOCKS ---
     elif menu == "📦 Gestion des Stocks":
         st.header("📦 Gestion du Magasin Pièces Rechange")
-        tab_inv, tab_add = st.tabs(["📋 Inventaire & Alertes", "➕ Entrée Stock / Nouvelle Réf"])
+        
+        # Correction : On définit bien les 3 onglets ici
+        tab_inv, tab_add, tab_import = st.tabs(["📋 Inventaire & Alertes", "➕ Entrée Stock / Nouvelle Réf", "📥 Import/Export Excel"])
+        
         with tab_inv:
             df_s = pd.read_sql("SELECT * FROM stocks", conn)
-            if not df_s.empty:               
+            if not df_s.empty:                
                 st.dataframe(df_s, use_container_width=True)
+                
+                # Option d'exportation
+                st.download_button(
+                    label="📥 Exporter l'inventaire en Excel",
+                    data=to_excel(df_s),
+                    file_name=f"inventaire_cilam_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
                 alertes = df_s[df_s['quantite_reelle'] <= df_s['stock_mini']]
-                if not alertes.empty: st.warning(f"⚠️ {len(alertes)} références critiques !")
-            else: st.info("Le magasin est vide.")
+                if not alertes.empty: 
+                    st.warning(f"⚠️ {len(alertes)} références critiques (Stock mini atteint) !")
+                    st.table(alertes[['designation', 'quantite_reelle', 'stock_mini']])
+            else: 
+                st.info("Le magasin est vide.")
+
         with tab_add:
             with st.form("form_stock"):
+                st.subheader("Saisie individuelle")
                 c_mag = st.text_input("Code Magasin")
                 c_ref = st.text_input("Référence Constructeur")
                 c_des = st.text_input("Désignation")
@@ -332,7 +349,40 @@ elif st.session_state["authentication_status"]:
                     if c_mag and c_des:
                         c.execute("INSERT OR REPLACE INTO stocks (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) VALUES (?,?,?,?,?)", (c_mag, c_ref, c_des, c_qte, c_mini))
                         conn.commit()
-                        st.rerun()                     
+                        st.success(f"Article {c_des} enregistré.")
+                        st.rerun()
+                    else:
+                        st.error("Le Code Magasin et la Désignation sont obligatoires.")
+
+        with tab_import:
+            st.subheader("📥 Mise à jour massive")
+            st.write("Importez un fichier Excel pour mettre à jour tout votre stock d'un coup.")
+            
+            uploaded_file = st.file_uploader("Choisir un fichier Excel (.xlsx)", type=["xlsx"])
+            if uploaded_file:
+                try:
+                    df_imp = pd.read_excel(uploaded_file)
+                    st.write("Aperçu des données :")
+                    st.dataframe(df_imp.head())
+                    
+                    if st.button("Confirmer l'importation massive"):
+                        # On vérifie que les colonnes indispensables sont là
+                        cols_ok = ["code_magasin", "ref_constructeur", "designation", "quantite_reelle", "stock_mini"]
+                        if all(col in df_imp.columns for col in cols_ok):
+                            for _, row in df_imp.iterrows():
+                                c.execute("""INSERT OR REPLACE INTO stocks 
+                                          (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) 
+                                          VALUES (?,?,?,?,?)""", 
+                                          (str(row['code_magasin']), str(row['ref_constructeur']), 
+                                           str(row['designation']), int(row['quantite_reelle']), 
+                                           int(row['stock_mini'])))
+                            conn.commit()
+                            st.success("✅ Importation réussie !")
+                            st.rerun()
+                        else:
+                            st.error("Format de colonnes incorrect. Vérifiez votre fichier.")
+                except Exception as e:
+                    st.error(f"Erreur de lecture : {e}")                     
   
     # --- F. CONFIGURATION (ADMIN) ---
     elif menu == "⚙️ Configuration":
