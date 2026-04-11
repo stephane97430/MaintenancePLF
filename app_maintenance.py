@@ -15,6 +15,9 @@ conn = sqlite3.connect('maintenance_plf.db', check_same_thread=False)
 c = conn.cursor()
 
 # Initialisation des tables avec support PHOTO (BLOB)
+c.execute('''CREATE TABLE IF NOT EXISTS stocks 
+             (id INTEGER PRIMARY KEY, nom_piece TEXT UNIQUE, quantite INTEGER)''')
+conn.commit()
 c.execute('''CREATE TABLE IF NOT EXISTS users 
              (username TEXT PRIMARY KEY, name TEXT, password TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS interventions 
