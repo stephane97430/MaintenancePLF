@@ -278,7 +278,8 @@ if st.session_state["authentication_status"]:
         df_stats = pd.read_sql("SELECT * FROM interventions", conn)
         
         if not df_stats.empty:
-            df_stats['date'] = pd.to_datetime(df_stats['date'])
+            df_stats['date'] = pd.to_datetime(df_stats['date'], errors='coerce')
+            df_stats = df_stats.dropna(subset=['date'])
             
             # --- LIGNE 1 : RÉPARTITION GÉNÉRALE ---
             col_s1, col_s2 = st.columns(2)
