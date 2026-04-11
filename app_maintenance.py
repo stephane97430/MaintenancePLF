@@ -340,9 +340,9 @@ elif st.session_state["authentication_status"]:
         with tab_add:
             with st.form("form_stock"):
                 st.subheader("Saisie individuelle")
-                c_mag = st.text_input("article")
-                c_pri = st.text_input("Prix")
-                c_des = st.text_input("libellé")
+                c_mag = st.text_input("Code magasin")
+                c_ref = st.text_input("Reférence constructeur")
+                c_des = st.text_input("Designation")
                 c_qte = st.number_input("Quantité", min_value=0)
                 c_mini = st.number_input("Stock Mini", min_value=0)
                 if st.form_submit_button("Enregistrer"):
