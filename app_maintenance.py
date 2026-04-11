@@ -270,18 +270,60 @@ if st.session_state["authentication_status"]:
                 edited_dat.to_sql("dat", conn, if_exists="replace", index=False)
                 st.success("Données synchronisées.")
 
-    # --- E. STATISTIQUES ---
+# --- E. STATISTIQUES ---
     elif menu == "📈 Statistiques":
-        st.header("📊 Analyse d'Activité")
+        st.header("📊 Analyse de Performance & Fiabilité")
+        
+        # Chargement des données d'interventions
         df_stats = pd.read_sql("SELECT * FROM interventions", conn)
+        
         if not df_stats.empty:
+            df_stats['date'] = pd.to_datetime(df_stats['date'])
+            
+            # --- LIGNE 1 : RÉPARTITION GÉNÉRALE ---
             col_s1, col_s2 = st.columns(2)
             with col_s1:
-                st.plotly_chart(px.pie(df_stats, names='type', title="Répartition par Type"), use_container_width=True)
+                st.plotly_chart(px.pie(df_stats, names='type', title="Répartition par Type d'Intervention", hole=0.4), use_container_width=True)
             with col_s2:
-                st.plotly_chart(px.bar(df_stats, x='ligne', y='duree', color='type', title="Temps passé par Ligne"), use_container_width=True)
+                # Top 5 des machines ayant le plus de pannes (Curatif)
+                df_curatif_count = df_stats[df_stats['type'] == 'CURATIF'].groupby('machine').size().reset_index(name='nb_pannes')
+                df_curatif_count = df_curatif_count.sort_values('nb_pannes', ascending=False).head(5)
+                st.plotly_chart(px.bar(df_curatif_count, x='nb_pannes', y='machine', orientation='h', 
+                                       title="Top 5 Machines : Fréquence de Pannes (Curatif)",
+                                       labels={'nb_pannes': 'Nombre de pannes', 'machine': 'Machine'}), use_container_width=True)
+
+            st.divider()
+
+            # --- LIGNE 2 : ANALYSE DE FIABILITÉ (MTBF) ---
+            st.subheader("🛠️ Indicateur de Fiabilité : MTBF par Machine")
+            st.info("Le MTBF (Mean Time Between Failure) représente le nombre de jours moyen entre deux pannes curatives.")
+
+            # Filtrage pour le calcul du MTBF
+            df_mtbf_raw = df_stats[df_stats['type'] == 'CURATIF'].sort_values(['machine', 'date'])
+            
+            if len(df_mtbf_raw) > 0:
+                # Calcul de la différence entre dates consécutives par machine
+                df_mtbf_raw['jours_entre_pannes'] = df_mtbf_raw.groupby('machine')['date'].diff().dt.days
+                
+                # Moyenne par machine (on ignore les valeurs NaN issues de la première panne de chaque machine)
+                mtbf_final = df_mtbf_raw.dropna(subset=['jours_entre_pannes']).groupby('machine')['jours_entre_pannes'].mean().reset_index()
+                mtbf_final.columns = ['Machine', 'MTBF (Jours)']
+                
+                if not mtbf_final.empty:
+                    c_m1, c_m2 = st.columns([1, 2])
+                    with c_m1:
+                        st.dataframe(mtbf_final.style.format({"MTBF (Jours)": "{:.1f}"}), use_container_width=True)
+                    with c_m2:
+                        st.plotly_chart(px.bar(mtbf_final, x='Machine', y='MTBF (Jours)', 
+                                               title="MTBF : Temps moyen de bon fonctionnement",
+                                               color='MTBF (Jours)', color_continuous_scale='RdYlGn'), use_container_width=True)
+                else:
+                    st.warning("Pas assez de données historiques (minimum 2 pannes par machine) pour calculer le MTBF.")
+            else:
+                st.info("Aucune intervention curative enregistrée pour le calcul de fiabilité.")
+
         else:
-            st.info("Aucune donnée pour les statistiques.")
+            st.info("Aucune donnée disponible pour générer les statistiques.")
 
     # --- F. CONFIGURATION (ADMIN) ---
     elif menu == "⚙️ Configuration":
