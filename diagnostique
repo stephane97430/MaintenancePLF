@@ -1,0 +1,54 @@
+import sqlite3
+import pandas as pd
+import os
+from datetime import datetime
+
+def diagnostic_et_sauvegarde():
+    db_file = 'maintenance_plf.db'
+    
+    if not os.path.exists(db_file):
+        print(f"❌ Erreur : Le fichier {db_file} est introuvable dans le dossier actuel.")
+        return
+
+    print(f"🔍 Analyse de la base de données : {db_file}")
+    conn = sqlite3.connect(db_file)
+    
+    # Nom du fichier de sauvegarde avec horodatage
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_excel = f"SAUVEGARDE_URGENTE_CILAM_{timestamp}.xlsx"
+    
+    try:
+        with pd.ExcelWriter(backup_excel, engine='xlsxwriter') as writer:
+            # Liste des tables à vérifier
+            tables = ['interventions', 'dat', 'stocks', 'preventif_plan', 'config', 'users']
+            
+            for table in tables:
+                try:
+                    # Lecture de la table
+                    df = pd.read_sql(f"SELECT * FROM {table}", conn)
+                    
+                    if not df.empty:
+                        # On retire les colonnes binaires (photos) pour l'export Excel
+                        cols_to_drop = [c for c in df.columns if 'photo' in c.lower() and df[c].dtype == 'object']
+                        df_clean = df.drop(columns=cols_to_drop)
+                        
+                        df_clean.to_excel(writer, sheet_name=table, index=False)
+                        print(f"✅ Table '{table}' exportée ({len(df)} lignes).")
+                    else:
+                        print(f"⚠️ Table '{table}' trouvée mais elle est vide.")
+                except Exception as e:
+                    print(f"❌ Impossible de lire la table '{table}': {e}")
+
+        print("\n" + "="*50)
+        print(f"🚀 DIAGNOSTIC TERMINÉ")
+        print(f"Fichier créé : {backup_excel}")
+        print("Vérifiez ce fichier Excel pour confirmer que vos données sont là.")
+        print("="*50)
+
+    except Exception as e:
+        print(f"💥 Erreur critique lors de l'export : {e}")
+    finally:
+        conn.close()
+
+if __name__ == "__main__":
+    diagnostic_et_sauvegarde()
