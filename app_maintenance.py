@@ -54,6 +54,24 @@ conn.commit()
 import smtplib
 from email.mime.text import MIMEText
 
+def deduire_stock_automatique(texte_intervention):
+    """Scanne le texte pour trouver des pièces et déduire 1 unité par défaut."""
+    pieces_en_stock = c.execute("SELECT designation, quantite_reelle FROM stocks").fetchall()
+    actions_faites = []
+    
+    for designation, qte in pieces_en_stock:
+        # On vérifie si le nom de la pièce est mentionné (insensible à la casse)
+        if designation.lower() in texte_intervention.lower():
+            if qte > 0:
+                nouvelle_qte = qte - 1
+                c.execute("UPDATE stocks SET quantite_reelle = ? WHERE designation = ?", (nouvelle_qte, designation))
+                actions_faites.append(f"📦 Stock mis à jour : {designation} (-1)")
+            else:
+                st.error(f"⚠️ Rupture de stock pour : {designation}")
+    
+    conn.commit()
+    return actions_faites
+
 def envoyer_alerte_dat(ligne, machine, action):
     # Configuration (À adapter avec vos accès)
     sender_email = "latchoumanestephane@gmail.com"
