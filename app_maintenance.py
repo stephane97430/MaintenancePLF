@@ -14,17 +14,10 @@ st.set_page_config(page_title="Maintenance CILAM PLF", layout="wide", page_icon=
 conn = sqlite3.connect('maintenance_plf.db', check_same_thread=False)
 c = conn.cursor()
 
-# Initialisation des tables avec support PHOTO (BLOB)
 c.execute('''CREATE TABLE IF NOT EXISTS stocks 
-             (id INTEGER PRIMARY KEY, 
-              code_magasin TEXT UNIQUE, 
-              ref_constructeur TEXT, 
-              designation TEXT, 
-              quantite_reelle INTEGER, 
-              stock_mini INTEGER)''')
-conn.commit()
-c.execute('''CREATE TABLE IF NOT EXISTS users 
-             (username TEXT PRIMARY KEY, name TEXT, password TEXT)''')
+             (id INTEGER PRIMARY KEY, code_magasin TEXT UNIQUE, ref_constructeur TEXT, 
+              designation TEXT, quantite_reelle INTEGER, stock_mini INTEGER)''')
+c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, name TEXT, password TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS interventions 
              (id INTEGER PRIMARY KEY, date TEXT, type TEXT, duree REAL, ligne TEXT, machine TEXT, 
               techniciens TEXT, statut TEXT, probleme TEXT, solution TEXT, remarque TEXT, auteur TEXT, photo BLOB)''')
@@ -36,18 +29,15 @@ c.execute('''CREATE TABLE IF NOT EXISTS preventif_plan
              (id INTEGER PRIMARY KEY, ligne TEXT, machine TEXT, tache TEXT, frequence_jours INTEGER, 
               derniere_date TEXT, prochaine_date TEXT, pieces_necessaires TEXT, temps_estime REAL DEFAULT 0, technicien_prev TEXT)''')
 
-# Migration automatique pour les colonnes manquantes
 try:
     c.execute("ALTER TABLE interventions ADD COLUMN photo BLOB")
 except sqlite3.OperationalError:
     pass
-
 try:
     c.execute("ALTER TABLE preventif_plan ADD COLUMN pieces_necessaires TEXT")
     c.execute("ALTER TABLE preventif_plan ADD COLUMN temps_estime REAL DEFAULT 0")
 except sqlite3.OperationalError:
     pass
-
 conn.commit()
 
 # --- 3. FONCTIONS UTILITAIRES ---
@@ -55,12 +45,9 @@ import smtplib
 from email.mime.text import MIMEText
 
 def deduire_stock_automatique(texte_intervention):
-    """Scanne le texte pour trouver des pièces et déduire 1 unité par défaut."""
     pieces_en_stock = c.execute("SELECT designation, quantite_reelle FROM stocks").fetchall()
     actions_faites = []
-    
     for designation, qte in pieces_en_stock:
-        # On vérifie si le nom de la pièce est mentionné (insensible à la casse)
         if designation.lower() in texte_intervention.lower():
             if qte > 0:
                 nouvelle_qte = qte - 1
@@ -68,41 +55,36 @@ def deduire_stock_automatique(texte_intervention):
                 actions_faites.append(f"📦 Stock mis à jour : {designation} (-1)")
             else:
                 st.error(f"⚠️ Rupture de stock pour : {designation}")
-    
     conn.commit()
     return actions_faites
 
 def envoyer_alerte_dat(ligne, machine, action):
-    # Configuration (À adapter avec vos accès)
     sender_email = "latchoumanestephane@gmail.com"
     receiver_email = "stephane_latchoumane@cilam.com"
     password = "wkrz dljx isrf jhuw"
-
     msg = MIMEText(f"URGENCE CRITIQUE sur la ligne {ligne}\nMachine : {machine}\n\nAction demandée : {action}")
     msg['Subject'] = f"⚠️ ALERTE DAT CRITIQUE - {machine}"
     msg['From'] = sender_email
     msg['To'] = receiver_email
-
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_email, password)
             server.sendmail(sender_email, receiver_email, msg.as_string())
     except Exception as e:
         st.error(f"Erreur d'envoi mail : {e}")
+
 def get_config(type_cfg):
     res = c.execute("SELECT nom FROM config WHERE type=?", (type_cfg,)).fetchall()
     return [r[0] for r in res]
 
 def to_excel(df):
     output = io.BytesIO()
-    # On retire les données binaires de la photo pour l'export Excel
     df_export = df.drop(columns=['photo']) if 'photo' in df.columns else df
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df_export.to_excel(writer, index=False, sheet_name='Sheet1')
     return output.getvalue()
 
 def compress_image(image_file):
-    """Compresse l'image pour un stockage ultra-léger (format JPEG qualité 30%)."""
     img = Image.open(image_file)
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
@@ -135,12 +117,12 @@ def load_and_hash_credentials():
     creds = {"usernames": {}}
     for _, row in df_users.iterrows():
         creds["usernames"][row['username']] = {"name": row['name'], "password": row['password']}
-    # Note: Dans une version réelle, les mots de passe seraient hachés ici
     return creds
 
 credentials = load_and_hash_credentials()
 authenticator = stauth.Authenticate(credentials, "maintenance_plf_cookie", "signature_key_2026", cookie_expiry_days=30)
 
+# --- 5. LOGIQUE D'AFFICHAGE ---
 if st.session_state["authentication_status"] is None or st.session_state["authentication_status"] is False:
     col_l1, col_l2, col_l3 = st.columns([1,2,1])
     with col_l2:
@@ -150,55 +132,7 @@ if st.session_state["authentication_status"] is None or st.session_state["authen
     if st.session_state["authentication_status"] is False:
         st.error("Identifiant ou mot de passe incorrect")
 
-# --- 5. LOGIQUE PRINCIPALE ---
-elif menu == "📦 Gestion des Stocks":
-        st.header("📦 Gestion du Magasin Pièces Rechange")
-        
-        tab_inv, tab_add = st.tabs(["📋 Inventaire & Alertes", "➕ Entrée Stock / Nouvelle Réf"])
-        
-        with tab_inv:
-            df_s = pd.read_sql("SELECT * FROM stocks", conn)
-            
-            if not df_s.empty:
-                # Calcul des alertes
-                def highlight_low_stock(row):
-                    return ['background-color: #ffcccc' if row.quantite_reelle <= row.stock_mini else '' for _ in row]
-
-                st.subheader("État des stocks")
-                st.dataframe(df_s.style.apply(highlight_low_stock, axis=1), use_container_width=True)
-                
-                # Indicateurs rapides
-                alertes = df_s[df_s['quantite_reelle'] <= df_s['stock_mini']]
-                if not alertes.empty:
-                    st.warning(f"⚠️ {len(alertes)} références sont sous le seuil critique !")
-            else:
-                st.info("Le magasin est vide.")
-
-        with tab_add:
-            st.subheader("Ajouter ou Modifier une référence")
-            with st.form("form_stock"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    c_mag = st.text_input("Code Magasin (ex: M001)")
-                    c_ref = st.text_input("Référence Constructeur")
-                    c_des = st.text_input("Désignation")
-                with col2:
-                    c_qte = st.number_input("Quantité Réelle", min_value=0, step=1)
-                    c_mini = st.number_input("Stock Mini (Alerte)", min_value=0, step=1)
-                
-                submit_s = st.form_submit_button("Enregistrer en base")
-                
-                if submit_s:
-                    if c_mag and c_des:
-                        c.execute('''INSERT OR REPLACE INTO stocks 
-                                     (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) 
-                                     VALUES (?,?,?,?,?)''', (c_mag, c_ref, c_des, c_qte, c_mini))
-                        conn.commit()
-                        st.success(f"Référence {c_des} mise à jour.")
-                        st.rerun()
-                    else:
-                        st.error("Le Code Magasin et la Désignation sont obligatoires.")
-if st.session_state["authentication_status"]:
+elif st.session_state["authentication_status"]:
     user_full_name = st.session_state["name"]
     user_id = st.session_state["username"]
     is_admin = (user_id == "admin")
@@ -226,7 +160,6 @@ if st.session_state["authentication_status"]:
             duree = st.number_input("Durée de l'intervention (minutes)", min_value=0.0, step=5.0)
             ligne, machine = selecteur_ligne_machine_harmonise("saisie", params.get("ligne"), params.get("machine"), inclure_toutes=False)
             photo_capture = st.camera_input("📸 Photo (Format léger)")
-
         with col2:
             techs_dispo = get_config("Technicien")
             techs = st.multiselect("Techniciens concernés", techs_dispo, default=[user_full_name] if user_full_name in techs_dispo else None)
@@ -234,16 +167,13 @@ if st.session_state["authentication_status"]:
             prob = st.text_area("Description du problème")
             sol = st.text_area("Solution apportée")
             remarque = st.text_input("Observations / Pièces changées")
-
         if st.button("Enregistrer l'intervention"):
             img_blob = compress_image(photo_capture) if photo_capture else None
             c.execute("""INSERT INTO interventions (date, type, duree, ligne, machine, techniciens, statut, probleme, solution, remarque, auteur, photo) 
-                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                      (str(date_int), type_int, duree, ligne, machine, ", ".join(techs), statut, prob, sol, remarque, user_id, img_blob))          
+                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (str(date_int), type_int, duree, ligne, machine, ", ".join(techs), statut, prob, sol, remarque, user_id, img_blob))          
             conn.commit()
             logs_stock = deduire_stock_automatique(remarque)
-            for log in logs_stock:
-                st.info(log) 
+            for log in logs_stock: st.info(log) 
             st.success("✅ Intervention enregistrée avec succès !")
             st.query_params.clear()
 
@@ -273,10 +203,9 @@ if st.session_state["authentication_status"]:
                         next_dt = (datetime.now() + timedelta(days=int(row['frequence_jours']))).date()
                         c.execute("UPDATE preventif_plan SET derniere_date=?, prochaine_date=? WHERE tache=?", (str(datetime.now().date()), str(next_dt), t_val))
                         c.execute("""INSERT INTO interventions (date, type, duree, ligne, machine, techniciens, probleme, solution, auteur, statut) 
-                                     VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                                  (str(datetime.now().date()), "PREVENTIF", row.get('temps_estime',0), row['ligne'], row['machine'], ", ".join(tech_val), f"Réalisation : {t_val}", f"Pièces : {row.get('pieces_necessaires','N/A')}", user_id, "Terminé"))
+                                     VALUES (?,?,?,?,?,?,?,?,?,?)""", (str(datetime.now().date()), "PREVENTIF", row.get('temps_estime',0), row['ligne'], row['machine'], ", ".join(tech_val), f"Réalisation : {t_val}", f"Pièces : {row.get('pieces_necessaires','N/A')}", user_id, "Terminé"))
                         conn.commit()
-                        st.success("Tâche mise à jour et historisée !")
+                        st.success("Tâche mise à jour !")
                         st.rerun()
         if is_admin:
             with tabs[1]:
@@ -292,12 +221,10 @@ if st.session_state["authentication_status"]:
                 if st.button("Enregistrer la nouvelle gamme"):
                     if p_tache and p_mach != "Sélectionner une ligne":
                         prochaine = datetime.now() + timedelta(days=p_freq)
-                        c.execute("INSERT INTO preventif_plan (ligne, machine, tache, frequence_jours, prochaine_date, pieces_necessaires, temps_estime) VALUES (?,?,?,?,?,?,?)",
-                                  (p_ligne, p_mach, p_tache, p_freq, str(prochaine.date()), p_pieces, p_temps))
+                        c.execute("INSERT INTO preventif_plan (ligne, machine, tache, frequence_jours, prochaine_date, pieces_necessaires, temps_estime) VALUES (?,?,?,?,?,?,?)", (p_ligne, p_mach, p_tache, p_freq, str(prochaine.date()), p_pieces, p_temps))
                         conn.commit()
                         st.rerun()
                 st.divider()
-                st.subheader("📋 Liste complète des gammes")
                 df_edit = pd.read_sql("SELECT * FROM preventif_plan", conn)
                 edited_prev = st.data_editor(df_edit, use_container_width=True, num_rows="dynamic")
                 if st.button("Appliquer les modifications du plan"):
@@ -311,7 +238,6 @@ if st.session_state["authentication_status"]:
         with col_h1: h_ligne, h_mach = selecteur_ligne_machine_harmonise("hist", inclure_toutes=True)
         with col_h2: h_type = st.selectbox("Type", ["Toutes", "CURATIF", "PREVENTIF", "AMELIORATION", "REGLAGE"])
         with col_h3: h_search = st.text_input("Recherche (Problème/Solution)")
-
         query = "SELECT * FROM interventions WHERE 1=1"
         db_params = []
         if h_ligne != "Toutes":
@@ -322,24 +248,20 @@ if st.session_state["authentication_status"]:
             query += " AND type = ?"; db_params.append(h_type)
         if h_search:
             query += " AND (probleme LIKE ? OR solution LIKE ?)"; db_params.extend([f"%{h_search}%", f"%{h_search}%"])
-        
         df_hist = pd.read_sql(query + " ORDER BY id DESC", conn, params=db_params)
-        
         for _, row in df_hist.iterrows():
             with st.expander(f"🛠️ {row['date']} - {row['machine']} - {row['type']}"):
                 c1, c2 = st.columns([3, 1])
                 c1.write(f"**Techniciens :** {row['techniciens']}")
                 c1.write(f"**Problème :** {row['probleme']}")
                 c1.write(f"**Solution :** {row['solution']}")
-                if row['photo']:
-                    c2.image(row['photo'], caption="Photo terrain", use_container_width=True)
+                if row['photo']: c2.image(row['photo'], caption="Photo terrain", use_container_width=True)
                 if is_admin:
                     if st.button(f"🗑️ Supprimer {row['id']}", key=f"del_{row['id']}"):
                         c.execute("DELETE FROM interventions WHERE id=?", (row['id'],))
                         conn.commit()
                         st.rerun()
-            
-        st.download_button("📥 Télécharger Excel (Données)", data=to_excel(df_hist), file_name="historique_plf.xlsx")
+        st.download_button("📥 Télécharger Excel", data=to_excel(df_hist), file_name="historique_plf.xlsx")
 
     # --- D. GESTION DAT ---
     elif menu == "📝 Gestion DAT":
@@ -355,13 +277,10 @@ if st.session_state["authentication_status"]:
                 d_action = st.text_area("Action demandée détaillée")
                 d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
             if st.button("Soumettre la DAT"):
-                c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
-                          VALUES (?,?,?,?,?,?,?,?)""", (str(datetime.now().date()), d_demandeur, d_ligne, d_mach, d_urgence, d_action, "Ouvert", user_id))
+                c.execute("INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) VALUES (?,?,?,?,?,?,?,?)", (str(datetime.now().date()), d_demandeur, d_ligne, d_mach, d_urgence, d_action, "Ouvert", user_id))
                 conn.commit()
                 st.success("DAT enregistrée !")
-            if d_urgence == "CRITIQUE":
-                envoyer_alerte_dat(d_ligne, d_mach, d_action)
-                st.warning("📧 Email d'alerte envoyé au responsable.")  
+                if d_urgence == "CRITIQUE": envoyer_alerte_dat(d_ligne, d_mach, d_action)
         with t_liste:
             df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
             edited_dat = st.data_editor(df_dat, use_container_width=True, num_rows="dynamic" if is_admin else "fixed")
@@ -369,152 +288,58 @@ if st.session_state["authentication_status"]:
                 edited_dat.to_sql("dat", conn, if_exists="replace", index=False)
                 st.success("Données synchronisées.")
 
-# --- E. STATISTIQUES ---
+    # --- E. STATISTIQUES ---
     elif menu == "📈 Statistiques":
         st.header("📊 Tableau de Bord Maintenance")
-        
-        # Chargement des données
         df_stats = pd.read_sql("SELECT * FROM interventions", conn)
-        df_stock = pd.read_sql("SELECT * FROM stocks", conn)
-        
         if not df_stats.empty:
-            # Nettoyage des dates pour éviter les crashs (Correction point précédent)
             df_stats['date'] = pd.to_datetime(df_stats['date'], errors='coerce')
             df_stats = df_stats.dropna(subset=['date'])
-
-            # Création des onglets
-            tab_global, tab_fiabilite, tab_stocks = st.tabs([
-                "🌍 Vision Globale", 
-                "⚙️ Fiabilité Machines", 
-                "📦 État des Stocks"
-            ])
-
-            # --- ONGLET 1 : STATS GLOBALES ---
+            tab_global, tab_fiabilite = st.tabs(["🌍 Vision Globale", "⚙️ Fiabilité Machines"])
             with tab_global:
-                st.subheader("Indicateurs Clés de Performance (KPI)")
                 col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-                
-                total_heures = df_stats['duree'].sum() / 60
-                nb_inter = len(df_stats)
-                tx_curatif = (len(df_stats[df_stats['type'] == 'CURATIF']) / nb_inter) * 100
-
-                col_kpi1.metric("Total Interventions", f"{nb_inter}")
-                col_kpi2.metric("Temps Total", f"{total_heures:.1f} h")
-                col_kpi3.metric("Part Curatif", f"{tx_curatif:.1f}%", delta=f"{tx_curatif-50:.1f}%", delta_color="inverse")
-
+                col_kpi1.metric("Total Interventions", f"{len(df_stats)}")
+                col_kpi2.metric("Temps Total", f"{df_stats['duree'].sum()/60:.1f} h")
                 col_g1, col_g2 = st.columns(2)
-                with col_g1:
-                    st.plotly_chart(px.pie(df_stats, names='type', title="Répartition par Type", hole=0.4), use_container_width=True)
-                with col_g2:
-                    st.plotly_chart(px.histogram(df_stats, x='date', y='duree', color='type', title="Charge de travail par jour"), use_container_width=True)
-
-            # --- ONGLET 2 : FIABILITÉ (MTBF) ---
+                with col_g1: st.plotly_chart(px.pie(df_stats, names='type', title="Répartition par Type"), use_container_width=True)
+                with col_g2: st.plotly_chart(px.histogram(df_stats, x='date', y='duree', color='type', title="Charge de travail"), use_container_width=True)
             with tab_fiabilite:
-                st.subheader("Analyse de Fiabilité (MTBF)")
                 df_curatif = df_stats[df_stats['type'] == 'CURATIF'].sort_values(['machine', 'date'])
-                
                 if len(df_curatif) > 0:
                     df_curatif['diff'] = df_curatif.groupby('machine')['date'].diff().dt.days
                     mtbf = df_curatif.dropna(subset=['diff']).groupby('machine')['diff'].mean().reset_index()
-                    mtbf.columns = ['Machine', 'MTBF (Jours)']
-                    
-                    st.plotly_chart(px.bar(mtbf, x='Machine', y='MTBF (Jours)', color='MTBF (Jours)', 
-                                           title="Temps moyen entre 2 pannes (Jours)", color_continuous_scale='RdYlGn'), use_container_width=True)
-                else:
-                    st.info("Données insuffisantes pour calculer le MTBF.")
+                    st.plotly_chart(px.bar(mtbf, x='machine', y='diff', title="MTBF (Jours)"), use_container_width=True)
 
-    # --- F. GESTION DES STOCKS (DÉPLACÉ ICI ET BIEN ALIGNÉ) ---
+    # --- F. GESTION DES STOCKS ---
     elif menu == "📦 Gestion des Stocks":
         st.header("📦 Gestion du Magasin Pièces Rechange")
         tab_inv, tab_add = st.tabs(["📋 Inventaire & Alertes", "➕ Entrée Stock / Nouvelle Réf"])
-        
         with tab_inv:
             df_s = pd.read_sql("SELECT * FROM stocks", conn)
             if not df_s.empty:
-                def highlight_low_stock(row):
-                    return ['background-color: #ffcccc' if row.quantite_reelle <= row.stock_mini else '' for _ in row]
-                st.subheader("État des stocks")
-                st.dataframe(df_s.style.apply(highlight_low_stock, axis=1), use_container_width=True)
+                st.dataframe(df_s, use_container_width=True)
                 alertes = df_s[df_s['quantite_reelle'] <= df_s['stock_mini']]
-                if not alertes.empty:
-                    st.warning(f"⚠️ {len(alertes)} références sont sous le seuil critique !")
-            else:
-                st.info("Le magasin est vide.")
-
+                if not alertes.empty: st.warning(f"⚠️ {len(alertes)} références critiques !")
+            else: st.info("Le magasin est vide.")
         with tab_add:
-            st.subheader("Ajouter ou Modifier une référence")
             with st.form("form_stock"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    c_mag = st.text_input("Code Magasin (ex: M001)")
-                    c_ref = st.text_input("Référence Constructeur")
-                    c_des = st.text_input("Désignation")
-                with col2:
-                    c_qte = st.number_input("Quantité Réelle", min_value=0, step=1)
-                    c_mini = st.number_input("Stock Mini (Alerte)", min_value=0, step=1)
-                
-                if st.form_submit_button("Enregistrer en base"):
+                c_mag = st.text_input("Code Magasin")
+                c_ref = st.text_input("Référence Constructeur")
+                c_des = st.text_input("Désignation")
+                c_qte = st.number_input("Quantité", min_value=0)
+                c_mini = st.number_input("Stock Mini", min_value=0)
+                if st.form_submit_button("Enregistrer"):
                     if c_mag and c_des:
-                        c.execute("INSERT OR REPLACE INTO stocks (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) VALUES (?,?,?,?,?)", 
-                                 (c_mag, c_ref, c_des, c_qte, c_mini))
-                        conn.commit()
-                        st.success(f"Référence {c_des} mise à jour.")
-                        st.rerun()  
-    # --- G. CONFIGURATION (ADMIN) ---
-    elif menu == "⚙️ Configuration":
-        if is_admin:
-            st.header("⚙️ Paramètres Système")
-            tab_struct, tab_users = st.tabs(["🏗️ Structure Usine", "👤 Gestion des Utilisateurs"])
-            
-            with tab_struct:
-                col_c1, col_c2 = st.columns(2)
-                with col_c1:
-                    st.subheader("➕ Ajouter un élément")
-                    t_cfg = st.selectbox("Type", ["Technicien", "Ligne", "Machine"])
-                    if t_cfg == "Machine":
-                        lp = st.selectbox("Ligne parente", get_config("Ligne"))
-                        nom_cfg = st.text_input("Désignation machine")
-                        type_store = f"Machine_{lp}"
-                    else:
-                        nom_cfg = st.text_input(f"Désignation {t_cfg}")
-                        type_store = t_cfg
-                    if st.button("Ajouter à la config"):
-                        if nom_cfg:
-                            c.execute("INSERT INTO config (type, nom) VALUES (?,?)", (type_store, nom_cfg))
-                            conn.commit()
-                            st.rerun()
-                with col_c2:
-                    st.subheader("🗑️ Supprimer un élément")
-                    all_cfg = pd.read_sql("SELECT * FROM config", conn)
-                    sel_del = st.selectbox("Élément à supprimer", all_cfg['nom'].tolist() if not all_cfg.empty else [])
-                    if st.button("❌ Supprimer définitivement"):
-                        c.execute("DELETE FROM config WHERE nom=?", (sel_del,))
+                        c.execute("INSERT OR REPLACE INTO stocks (code_magasin, ref_constructeur, designation, quantite_reelle, stock_mini) VALUES (?,?,?,?,?)", (c_mag, c_ref, c_des, c_qte, c_mini))
                         conn.commit()
                         st.rerun()
 
-            with tab_users:
-                df_u = pd.read_sql("SELECT username, name FROM users", conn)
-                col_u1, col_u2 = st.columns(2)
-                with col_u1:
-                    st.subheader("➕ Nouvel utilisateur")
-                    nu, nn, np = st.text_input("Login"), st.text_input("Nom Complet"), st.text_input("MDP", type="password")
-                    if st.button("Créer le compte"):
-                        if nu and np:
-                            try:
-                                c.execute("INSERT INTO users VALUES (?, ?, ?)", (nu, nn, np))
-                                conn.commit()
-                                st.success("Utilisateur ajouté !")
-                                st.rerun()
-                            except: st.error("Identifiant déjà utilisé.")
-                with col_u2:
-                    st.subheader("🔑 Sécurité")
-                    target = st.selectbox("Compte à modifier", df_u['username'].tolist())
-                    mod_pw = st.text_input("Nouveau MDP", type="password", key="mod_pw")
-                    if st.button("Changer le MDP") and mod_pw:
-                        c.execute("UPDATE users SET password=? WHERE username=?", (mod_pw, target))
-                        conn.commit()
-                        st.success("Mot de passe modifié.")
-                    if target != "admin" and st.button("❌ Supprimer l'utilisateur"):
-                        c.execute("DELETE FROM users WHERE username=?", (target,))
-                        conn.commit()
-                        st.rerun()
+    # --- G. CONFIGURATION ---
+    elif menu == "⚙️ Configuration" and is_admin:
+        st.header("⚙️ Paramètres Système")
+        t_cfg = st.selectbox("Type", ["Technicien", "Ligne", "Machine"])
+        nom_cfg = st.text_input(f"Désignation {t_cfg}")
+        if st.button("Ajouter"):
+            c.execute("INSERT INTO config (type, nom) VALUES (?,?)", (t_cfg, nom_cfg))
+            conn.commit()
+            st.rerun()
