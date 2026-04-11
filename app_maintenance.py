@@ -16,7 +16,12 @@ c = conn.cursor()
 
 # Initialisation des tables avec support PHOTO (BLOB)
 c.execute('''CREATE TABLE IF NOT EXISTS stocks 
-             (id INTEGER PRIMARY KEY, nom_piece TEXT UNIQUE, quantite INTEGER)''')
+             (id INTEGER PRIMARY KEY, 
+              code_magasin TEXT UNIQUE, 
+              ref_constructeur TEXT, 
+              designation TEXT, 
+              quantite_reelle INTEGER, 
+              stock_mini INTEGER)''')
 conn.commit()
 c.execute('''CREATE TABLE IF NOT EXISTS users 
              (username TEXT PRIMARY KEY, name TEXT, password TEXT)''')
