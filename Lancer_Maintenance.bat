@@ -38,6 +38,6 @@ echo -----------------------------------------------------------
 echo.
 
 :: 4. Lancement de Streamlit
-python -m streamlit run maintenanceplf.py
+python -m streamlit run app_maintenance.py
 
 pause
