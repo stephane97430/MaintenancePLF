@@ -161,6 +161,8 @@ elif st.session_state["authentication_status"]:
             techs_dispo = get_config("Technicien")
             techs = st.multiselect("Techniciens concernés", techs_dispo, default=[user_full_name] if user_full_name in techs_dispo else None)
             statut = st.selectbox("Statut final", ["Terminé", "En cours", "En attente pièce"])
+            st.write("🎤 **Description Problème**")
+            v_prob = speech_to_text(language='fr', start_prompt="Parler", key='v_p')
             prob = st.text_area("Description du problème")
             sol = st.text_area("Solution apportée")
             remarque = st.text_input("Observations / Pièces changées")
