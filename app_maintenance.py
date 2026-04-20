@@ -179,9 +179,61 @@ elif st.session_state["authentication_status"]:
             c2.metric("Taux de clôture", f"{tx:.1f}%")
         st.plotly_chart(px.pie(pd.read_sql("SELECT type FROM interventions", conn), names='type', title="Interventions"))
 
-    # --- F. CONFIGURATION ---
-    elif menu == "⚙️ Config":
+    # --- F. CONFIGURATION (ADMIN) ---
+    elif menu == "⚙️ Configuration":
         if is_admin:
-            st.subheader("Atelier > Ligne > Machine")
-            at_n = st.text_input("Nouvel Atelier")
-            if st.button("Ajouter Atelier"): c.execute("INSERT INTO ateliers (nom) VALUES (?)", (at_n,)); conn.commit(); st.rerun()
+            st.header("⚙️ Paramètres Système")
+            tab_struct, tab_users = st.tabs(["🏗️ Structure Usine", "👤 Gestion des Utilisateurs"])
+            
+            with tab_struct:
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    st.subheader("➕ Ajouter un élément")
+                    t_cfg = st.selectbox("Type", ["Technicien", "Ligne", "Machine"])
+                    if t_cfg == "Machine":
+                        lp = st.selectbox("Ligne parente", get_config("Ligne"))
+                        nom_cfg = st.text_input("Désignation machine")
+                        type_store = f"Machine_{lp}"
+                    else:
+                        nom_cfg = st.text_input(f"Désignation {t_cfg}")
+                        type_store = t_cfg
+                    if st.button("Ajouter à la config"):
+                        if nom_cfg:
+                            c.execute("INSERT INTO config (type, nom) VALUES (?,?)", (type_store, nom_cfg))
+                            conn.commit()
+                            st.rerun()
+                with col_c2:
+                    st.subheader("🗑️ Supprimer un élément")
+                    all_cfg = pd.read_sql("SELECT * FROM config", conn)
+                    sel_del = st.selectbox("Élément à supprimer", all_cfg['nom'].tolist() if not all_cfg.empty else [])
+                    if st.button("❌ Supprimer définitivement"):
+                        c.execute("DELETE FROM config WHERE nom=?", (sel_del,))
+                        conn.commit()
+                        st.rerun()
+
+            with tab_users:
+                df_u = pd.read_sql("SELECT username, name FROM users", conn)
+                col_u1, col_u2 = st.columns(2)
+                with col_u1:
+                    st.subheader("➕ Nouvel utilisateur")
+                    nu, nn, np = st.text_input("Login"), st.text_input("Nom Complet"), st.text_input("MDP", type="password")
+                    if st.button("Créer le compte"):
+                        if nu and np:
+                            try:
+                                c.execute("INSERT INTO users VALUES (?, ?, ?)", (nu, nn, np))
+                                conn.commit()
+                                st.success("Utilisateur ajouté !")
+                                st.rerun()
+                            except: st.error("Identifiant déjà utilisé.")
+                with col_u2:
+                    st.subheader("🔑 Sécurité")
+                    target = st.selectbox("Compte à modifier", df_u['username'].tolist())
+                    mod_pw = st.text_input("Nouveau MDP", type="password", key="mod_pw")
+                    if st.button("Changer le MDP") and mod_pw:
+                        c.execute("UPDATE users SET password=? WHERE username=?", (mod_pw, target))
+                        conn.commit()
+                        st.success("Mot de passe modifié.")
+                    if target != "admin" and st.button("❌ Supprimer l'utilisateur"):
+                        c.execute("DELETE FROM users WHERE username=?", (target,))
+                        conn.commit()
+                        st.rerun()
