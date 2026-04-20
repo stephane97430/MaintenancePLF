@@ -5,3 +5,5 @@ streamlit-authenticator
 Pillow
 xlsxwriter
 openpyxl
+psycopg2-binary
+sqlalchemy
