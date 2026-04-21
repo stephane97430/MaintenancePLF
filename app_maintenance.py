@@ -164,7 +164,7 @@ elif st.session_state["authentication_status"]:
             st.write("🎤 **Description Problème**")
             v_prob = speech_to_text(language='fr', start_prompt="Parler", key='v_p')
             prob = st.text_area("Description du problème", value=v_prob if v_ prob else "")
-            sol = st.text_area("Solution apportée")
+            sol = st.text_area("Solution apportée", value=v_prob if v_ prob else "")
             remarque = st.text_input("Observations / Pièces changées")
         if st.button("Enregistrer l'intervention"):
             img_blob = compress_image(photo_capture) if photo_capture else None
