@@ -163,8 +163,8 @@ elif st.session_state["authentication_status"]:
             statut = st.selectbox("Statut final", ["Terminé", "En cours", "En attente pièce"])
             st.write("🎤 **Description Problème**")
             v_prob = speech_to_text(language='fr', start_prompt="Parler", key='v_p')
-            prob = st.text_area("Description du problème", value=v_prob if v_ prob else "")
-            sol = st.text_area("Solution apportée", value=v_prob if v_ prob else "")
+            prob = st.text_area("Description du problème", value=v_prob if v_prob else "")
+            sol = st.text_area("Solution apportée", value=v_prob if v_prob else "")
             remarque = st.text_input("Observations / Pièces changées")
         if st.button("Enregistrer l'intervention"):
             img_blob = compress_image(photo_capture) if photo_capture else None
