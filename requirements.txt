@@ -8,5 +8,4 @@ openpyxl
 psycopg2-binary
 sqlalchemy
 streamlit-mic-recorder
-streamlit-speech-to-text
 
