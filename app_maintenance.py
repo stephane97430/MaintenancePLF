@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import datetime, timedelta
-import io
+import io, json, base64
 import streamlit_authenticator as stauth
 from PIL import Image
 from streamlit_mic_recorder import speech_to_text
