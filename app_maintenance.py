@@ -147,24 +147,28 @@ elif st.session_state["authentication_status"]:
     st.markdown('<p style="font-size: 45px; font-weight: bold; color: #1E3A8A; text-align: center; border-bottom: 4px solid #1E3A8A; margin-bottom: 20px; padding-bottom: 10px;">MAINTENANCE CILAM PLF</p>', unsafe_allow_html=True) 
 
     # --- A. SAISIE INTERVENTION ---
-    if menu == "Saisie Intervention":
-        st.header("🛠️ Saisie d'une Intervention")
-        params = st.query_params
-        col1, col2 = st.columns(2)
-        with col1:
-            date_int = st.date_input("Date de l'intervention", datetime.now())
-            type_int = st.selectbox("Type d'intervention", ["CURATIF", "PREVENTIF", "AMELIORATION", "REGLAGE"])
-            duree = st.number_input("Durée de l'intervention (minutes)", min_value=0.0, step=5.0)
-            ligne, machine = selecteur_ligne_machine_harmonise("saisie", params.get("ligne"), params.get("machine"), inclure_toutes=False)
-            photo_capture = st.camera_input("📸 Photo (Format léger)")
-        with col2:
-            techs_dispo = get_config("Technicien")
-            techs = st.multiselect("Techniciens concernés", techs_dispo, default=[user_full_name] if user_full_name in techs_dispo else None)
-            statut = st.selectbox("Statut final", ["Terminé", "En cours", "En attente pièce"])
+    if menu == "🛠️ Saisie":
+        st.header("🛠️ Saisie Intervention")
+        if "photos_int" not in st.session_state: st.session_state.photos_int = []
+        c1, c2 = st.columns(2)
+        with c1:
+            dt_i = st.date_input("Date", datetime.now()); typ_i = st.selectbox("Type", ["CURATIF","PREVENTIF","AMELIORATION"])
+            at, li, ma = selecteur_cascade("s_i", False)
+            q_p = st.radio("Qualité Photo", ["Basse","Moyenne","Haute"], horizontal=True)
+            cam = st.camera_input("Photo")
+            if cam: 
+                st.session_state.photos_int.append(compress_image(cam, q_p))
+                st.rerun()
+        with c2:
             st.write("🎤 **Description Problème**")
             v_prob = speech_to_text(language='fr', start_prompt="Parler", key='v_p')
-            prob = st.text_area("Description du problème", value=v_prob if v_prob else "")
-            sol = st.text_area("Solution apportée", value=v_prob if v_prob else "")
+            prob = st.text_area("Problème", value=v_prob if v_prob else "")
+            sol = st.text_area("Solution")
+            if st.button("💾 Enregistrer"):
+                p_json = json.dumps([base64.b64encode(b).decode() for b in st.session_state.photos_int])
+                c.execute("INSERT INTO interventions (date, type, atelier, ligne, machine, probleme, solution, auteur, photos_json) VALUES (?,?,?,?,?,?,?,?,?)",
+                          (str(dt_i), typ_i, at, li, ma, prob, sol, user_id, p_json))
+                conn.commit(); st.session_state.photos_int = []; st.success("Enregistré !")
             remarque = st.text_input("Observations / Pièces changées")
         if st.button("Enregistrer l'intervention"):
             img_blob = compress_image(photo_capture) if photo_capture else None
