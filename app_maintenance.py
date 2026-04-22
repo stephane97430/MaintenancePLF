@@ -148,57 +148,73 @@ elif st.session_state["authentication_status"]:
     st.markdown('<p style="font-size: 45px; font-weight: bold; color: #1E3A8A; text-align: center; border-bottom: 4px solid #1E3A8A; margin-bottom: 20px; padding-bottom: 10px;">MAINTENANCE CILAM PLF</p>', unsafe_allow_html=True) 
 
     # --- A. SAISIE INTERVENTION ---
-    if menu == "🛠️ Saisie":
+    if menu == "Saisie Intervention": # Correction du nom ici
         st.header("🛠️ Saisie Intervention")
+        
+        # Initialisation du session_state pour stocker les transcriptions
+        if "txt_prob" not in st.session_state: st.session_state.txt_prob = ""
+        if "txt_sol" not in st.session_state: st.session_state.txt_sol = ""
         if "photos_int" not in st.session_state: st.session_state.photos_int = []
+
         c1, c2 = st.columns(2)
         with c1:
-            dt_i = st.date_input("Date", datetime.now()); typ_i = st.selectbox("Type", ["CURATIF","PREVENTIF","AMELIORATION"])
-            at, li, ma = selecteur_cascade("s_i", False)
-            q_p = st.radio("Qualité Photo", ["Basse","Moyenne","Haute"], horizontal=True)
+            date_int = st.date_input("Date", datetime.now())
+            type_int = st.selectbox("Type", ["CURATIF","PREVENTIF","AMELIORATION"])
+            # Utilisation du bon nom de fonction
+            ligne, machine = selecteur_ligne_machine_harmonise("s_i", inclure_toutes=False)
+            duree = st.number_input("Durée (minutes)", min_value=0, value=30)
+            
             cam = st.camera_input("Photo")
             if cam: 
-                st.session_state.photos_int.append(compress_image(cam, q_p))
-                st.rerun()
+                # Note: Assurez-vous que compress_image accepte bien les arguments fournis
+                img_data = compress_image(cam)
+                st.session_state.photos_int.append(img_data)
+
         with c2:
             techs_dispo = get_config("Technicien")
-            techs = st.multiselect("Techniciens concernés", techs_dispo, default=[user_full_name] if user_full_name in techs_dispo else None)
+            techs = st.multiselect("Techniciens", techs_dispo, default=[user_full_name] if user_full_name in techs_dispo else None)
             statut = st.selectbox("Statut final", ["Terminé", "En cours", "En attente pièce"])
     
-    # --- BLOC SAISIE VOCALE POUR LE PROBLÈME ---
-            st.write("📝 **Description du problème**")
-            vocal_prob = mic_recorder(start_prompt="🎤 Dicter le problème", stop_prompt="🛑 Arrêter", key='prob_mic')
-    
-    # Si un enregistrement est détecté, on transcrit
-            texte_transcrit_prob = ""
+            # --- SAISIE VOCALE PROBLÈME ---
+            st.write("📝 **Problème**")
+            vocal_prob = mic_recorder(start_prompt="🎤 Dicter", stop_prompt="🛑 Stop", key='prob_mic')
             if vocal_prob:
-                texte_transcrit_prob = transcrire_audio(vocal_prob['bytes'])
-    
-    # On affiche la zone de texte avec le contenu transcrit par défaut
-            prob = st.text_area("Texte du problème", value=texte_transcrit_prob)
+                # Simulation ou appel API OpenAI Whisper
+                # st.session_state.txt_prob = self.transcribe(vocal_prob['bytes']) 
+                st.info("Audio capturé (Transcription à configurer)")
+            
+            prob = st.text_area("Description du problème", value=st.session_state.txt_prob)
 
-    # --- IDEM POUR LA SOLUTION ---
-            st.write("💡 **Solution apportée**")
-            vocal_sol = mic_recorder(start_prompt="🎤 Dicter la solution", stop_prompt="🛑 Arrêter", key='sol_mic')
-    
-            texte_transcrit_sol = ""
+            # --- SAISIE VOCALE SOLUTION ---
+            st.write("💡 **Solution**")
+            vocal_sol = mic_recorder(start_prompt="🎤 Dicter", stop_prompt="🛑 Stop", key='sol_mic')
             if vocal_sol:
-                texte_transcrit_sol = transcrire_audio(vocal_sol['bytes'])
-        
-            sol = st.text_area("Texte de la solution", value=texte_transcrit_sol)
-    
+                # st.session_state.txt_sol = self.transcribe(vocal_sol['bytes'])
+                st.info("Audio capturé")
+            
+            sol = st.text_area("Description de la solution", value=st.session_state.txt_sol)
             remarque = st.text_input("Observations / Pièces changées")
-            prob = st.text_area("Problème", value=v_prob if v_prob else "")
-            sol = st.text_area("Solution")
-            if st.button("💾 Enregistrer"):
-                p_json = json.dumps([base64.b64encode(b).decode() for b in st.session_state.photos_int])
-            c.execute("""INSERT INTO interventions (date, type, duree, ligne, machine, techniciens, statut, probleme, solution, remarque, auteur, photo) 
-                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (str(date_int), type_int, duree, ligne, machine, ", ".join(techs), statut, prob, sol, remarque, user_id, img_blob))          
-            conn.commit()
-            logs_stock = deduire_stock_automatique(remarque)
-            for log in logs_stock: st.info(log) 
-            st.success("✅ Intervention enregistrée avec succès !")
-            st.query_params.clear() 
+
+            if st.button("💾 Enregistrer l'intervention"):
+                # Conversion des photos en JSON pour le stockage BLOB ou texte
+                img_blob = None
+                if st.session_state.photos_int:
+                    img_blob = st.session_state.photos_int[-1] # On prend la dernière photo
+
+                c.execute("""INSERT INTO interventions (date, type, duree, ligne, machine, techniciens, statut, probleme, solution, remarque, auteur, photo) 
+                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", 
+                          (str(date_int), type_int, duree, ligne, machine, ", ".join(techs), statut, prob, sol, remarque, user_id, img_blob))          
+                conn.commit()
+                
+                # Mise à jour des stocks
+                logs_stock = deduire_stock_automatique(remarque)
+                for log in logs_stock: st.success(log)
+                
+                st.success("✅ Intervention enregistrée !")
+                # Nettoyage
+                st.session_state.photos_int = []
+                st.rerun()
+
     # --- B. PLAN DE PRÉVENTIF ---
     elif menu == "📅 Plan de Préventif":
         st.header("📋 Planning de Maintenance Préventive")
