@@ -7,6 +7,9 @@ xlsxwriter
 openpyxl
 psycopg2-binary
 sqlalchemy
+streamlit
+streamlit-authenticator
+PyYAML
+google-generativeai
 streamlit-mic-recorder
-openai
 
