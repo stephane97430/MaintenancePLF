@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 import io, json, base64
 import streamlit_authenticator as stauth
 from PIL import Image
-from streamlit_mic_recorder import mic_recorder import openai
+from streamlit_mic_recorder import mic_recorder 
+import openai
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Maintenance CILAM PLF", layout="wide", page_icon="🛠️")
