@@ -44,6 +44,19 @@ conn.commit()
 import smtplib
 from email.mime.text import MIMEText
 
+def transcrire_audio(audio_bytes):
+    try:
+        # Sauvegarde temporaire du fichier audio
+        with open("temp_audio.wav", "wb") as f:
+            f.write(audio_bytes)
+        
+        audio_file = open("temp_audio.wav", "rb")
+        transcript = openai.Audio.transcribe("whisper-1", audio_file)
+        return transcript["text"]
+    except Exception as e:
+        st.error(f"Erreur transcription : {e}")
+        return ""
+
 def deduire_stock_automatique(texte_intervention):
     pieces_en_stock = c.execute("SELECT designation, quantite_reelle FROM stocks").fetchall()
     actions_faites = []
