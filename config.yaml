@@ -1,0 +1,24 @@
+credentials:
+  usernames:
+    admin_user:
+      email: admin@cilam.com
+      name: Administrateur
+      password: $2b$12$YourHashedPassword... # Généré par l'outil
+      role: administrator
+    tech_user:
+      email: tech@cilam.com
+      name: Technicien 1
+      password: $2b$12$YourHashedPassword...
+      role: user
+    guest_user:
+      email: invite@cilam.com
+      name: Invité
+      password: $2b$12$YourHashedPassword...
+      role: guest
+cookie:
+  expiry_days: 30
+  key: some_signature_key
+  name: maintenance_cookie
+preauthorized:
+  emails:
+    - mngr@cilam.com
