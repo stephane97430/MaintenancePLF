@@ -194,7 +194,7 @@ elif st.session_state["authentication_status"]:
            p_json = json.dumps([base64.b64encode(b).decode() for b in st.session_state.photos_int])
            c.execute("INSERT INTO interventions (date, type, atelier, ligne, machine, probleme, solution, auteur, photos_json) VALUES (?,?,?,?,?,?,?,?,?)",
                    (str(dt_i), typ_i, at, li, ma, prob, sol, user_id, p_json))
-                   conn.commit(); st.session_state.photos_int = []; st.success("Enregistré !")
+            conn.commit(); st.session_state.photos_int = []; st.success("Enregistré !")
             remarque = st.text_input("Observations / Pièces changées")
             img_blob = compress_image(photo_capture) if photo_capture else 
             logs_stock = deduire_stock_automatique(remarque)
