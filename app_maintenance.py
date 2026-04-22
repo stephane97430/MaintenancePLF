@@ -161,24 +161,44 @@ elif st.session_state["authentication_status"]:
                 st.session_state.photos_int.append(compress_image(cam, q_p))
                 st.rerun()
         with c2:
-            st.write("🎤 **Description Problème**")
-            v_prob = speech_to_text(language='fr', start_prompt="Parler", key='v_p')
+            techs_dispo = get_config("Technicien")
+            techs = st.multiselect("Techniciens concernés", techs_dispo, default=[user_full_name] if user_full_name in techs_dispo else None)
+            statut = st.selectbox("Statut final", ["Terminé", "En cours", "En attente pièce"])
+    
+    # --- BLOC SAISIE VOCALE POUR LE PROBLÈME ---
+            st.write("📝 **Description du problème**")
+            vocal_prob = mic_recorder(start_prompt="🎤 Dicter le problème", stop_prompt="🛑 Arrêter", key='prob_mic')
+    
+    # Si un enregistrement est détecté, on transcrit
+            texte_transcrit_prob = ""
+            if vocal_prob:
+                texte_transcrit_prob = transcrire_audio(vocal_prob['bytes'])
+    
+    # On affiche la zone de texte avec le contenu transcrit par défaut
+            prob = st.text_area("Texte du problème", value=texte_transcrit_prob)
+
+    # --- IDEM POUR LA SOLUTION ---
+            st.write("💡 **Solution apportée**")
+            vocal_sol = mic_recorder(start_prompt="🎤 Dicter la solution", stop_prompt="🛑 Arrêter", key='sol_mic')
+    
+            texte_transcrit_sol = ""
+            if vocal_sol:
+                texte_transcrit_sol = transcrire_audio(vocal_sol['bytes'])
+        
+            sol = st.text_area("Texte de la solution", value=texte_transcrit_sol)
+    
+            remarque = st.text_input("Observations / Pièces changées")
             prob = st.text_area("Problème", value=v_prob if v_prob else "")
             sol = st.text_area("Solution")
-            if st.button("💾 Enregistrer"):
-                p_json = json.dumps([base64.b64encode(b).decode() for b in st.session_state.photos_int])
-                c.execute("INSERT INTO interventions (date, type, atelier, ligne, machine, probleme, solution, auteur, photos_json) VALUES (?,?,?,?,?,?,?,?,?)",
-                          (str(dt_i), typ_i, at, li, ma, prob, sol, user_id, p_json))
-                conn.commit(); st.session_state.photos_int = []; st.success("Enregistré !")
+        if st.button("💾 Enregistrer"):
+           p_json = json.dumps([base64.b64encode(b).decode() for b in st.session_state.photos_int])
+           c.execute("INSERT INTO interventions (date, type, atelier, ligne, machine, probleme, solution, auteur, photos_json) VALUES (?,?,?,?,?,?,?,?,?)",
+                   (str(dt_i), typ_i, at, li, ma, prob, sol, user_id, p_json))
+                   conn.commit(); st.session_state.photos_int = []; st.success("Enregistré !")
             remarque = st.text_input("Observations / Pièces changées")
-        if st.button("Enregistrer l'intervention"):
-            img_blob = compress_image(photo_capture) if photo_capture else None
-            c.execute("""INSERT INTO interventions (date, type, duree, ligne, machine, techniciens, statut, probleme, solution, remarque, auteur, photo) 
-                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (str(date_int), type_int, duree, ligne, machine, ", ".join(techs), statut, prob, sol, remarque, user_id, img_blob))          
-            conn.commit()
+            img_blob = compress_image(photo_capture) if photo_capture else 
             logs_stock = deduire_stock_automatique(remarque)
-            for log in logs_stock: st.info(log) 
-            st.success("✅ Intervention enregistrée avec succès !")
+            for log in logs_stock: st.info(log)
             st.query_params.clear() 
     # --- B. PLAN DE PRÉVENTIF ---
     elif menu == "📅 Plan de Préventif":
