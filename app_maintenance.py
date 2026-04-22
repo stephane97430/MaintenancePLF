@@ -190,15 +190,14 @@ elif st.session_state["authentication_status"]:
             remarque = st.text_input("Observations / Pièces changées")
             prob = st.text_area("Problème", value=v_prob if v_prob else "")
             sol = st.text_area("Solution")
-        if st.button("💾 Enregistrer"):
-           p_json = json.dumps([base64.b64encode(b).decode() for b in st.session_state.photos_int])
-           c.execute("INSERT INTO interventions (date, type, atelier, ligne, machine, probleme, solution, auteur, photos_json) VALUES (?,?,?,?,?,?,?,?,?)",
-                   (str(dt_i), typ_i, at, li, ma, prob, sol, user_id, p_json))
-            conn.commit(); st.session_state.photos_int = []; st.success("Enregistré !")
-            remarque = st.text_input("Observations / Pièces changées")
-            img_blob = compress_image(photo_capture) if photo_capture else 
+                     if st.button("💾 Enregistrer"):
+                        p_json = json.dumps([base64.b64encode(b).decode() for b in st.session_state.photos_int])
+           c.execute("""INSERT INTO interventions (date, type, duree, ligne, machine, techniciens, statut, probleme, solution, remarque, auteur, photo) 
+                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (str(date_int), type_int, duree, ligne, machine, ", ".join(techs), statut, prob, sol, remarque, user_id, img_blob))          
+            conn.commit()
             logs_stock = deduire_stock_automatique(remarque)
-            for log in logs_stock: st.info(log)
+            for log in logs_stock: st.info(log) 
+            st.success("✅ Intervention enregistrée avec succès !")
             st.query_params.clear() 
     # --- B. PLAN DE PRÉVENTIF ---
     elif menu == "📅 Plan de Préventif":
