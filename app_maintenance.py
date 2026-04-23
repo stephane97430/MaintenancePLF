@@ -21,7 +21,7 @@ authenticator = stauth.Authenticate(
     config['cookie']['expiry_days'],
 )
 
-name, authentication_status, username = authenticator.login(location= 'main',key='Login_form')
+authenticator.login(location= 'main',key='Login_form')
 
 
 if authentication_status:
