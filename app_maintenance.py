@@ -4,18 +4,6 @@ import yaml
 from yaml.loader import SafeLoader
 import google.generativeai as genai
 from streamlit_mic_recorder import speech_to_text
-import streamlit_authenticator as stauth
-
-# 1. Listez les mots de passe que vous voulez utiliser
-passwords = ['admin123', 'tech123', 'guest123']
-
-# 2. Transformez-les en codes sécurisés (Hashes)
-hashed_passwords = stauth.Hasher(passwords).generate()
-
-# 3. Affichez-les pour les copier
-print(hashed_passwords)
-
-
 
 # --- CONFIGURATION IA ---
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
