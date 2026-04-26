@@ -410,8 +410,6 @@ if st.session_state["authentication_status"]:
     # --- D. HISTORIQUE (ALIGNÉ SUR LE ELIF PRÉCÉDENT) ---
     elif menu == "Historique Interventions":
         st.header("📂 Historique des Interventions")
-        df_hist = pd.read_sql("SELECT * FROM interventions ORDER BY id DESC", conn)       
-        st.dataframe(df_hist, use_container_width=True)
         col_h1, col_h2, col_h3 = st.columns([1, 1, 1])
         with col_h1: h_atelier, h_ligne, h_mach = selecteur_atelier_ligne_machine("hist", inclure_toutes=True)
         with col_h2: h_type = st.selectbox("Type", ["Toutes", "CURATIF", "PREVENTIF", "AMELIORATION", "REGLAGE"])
