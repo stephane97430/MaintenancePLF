@@ -512,7 +512,7 @@ if st.session_state["authentication_status"]:
             
             if st.button("Soumettre la DAT"):
                 c.execute("""INSERT INTO dat (date_creation, demandeur, atelier, ligne, machine, urgence, action, statut, auteur) 
-                          VALUES (?,?,?,?,?,?,?,?)""",
+                          VALUES (?,?,?,?,?,?,?,?,?)""",
                           (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
                 conn.commit()
                 st.success("✅ DAT enregistrée !")
