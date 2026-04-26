@@ -470,10 +470,9 @@ if st.session_state["authentication_status"]:
                 # --- Action demandée avec Option Vocale ---
                 v_action = saisie_vocale("Détails de l'action")
                 d_action = st.text_area("Action demandée détaillée", value=v_action if v_action else "")
-                
                 d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
    if st.button("Soumettre la DAT"):
-    c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
+    c.execute("""INSERT INTO dat (date_creation, demandeur, atelier, ligne, machine, urgence, action, statut, auteur) 
               VALUES (?,?,?,?,?,?,?,?)""", (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
 
                 conn.commit()
