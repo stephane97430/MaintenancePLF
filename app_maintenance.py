@@ -56,6 +56,44 @@ except sqlite3.OperationalError:
 conn.commit()
 
 # --- 3. FONCTIONS UTILITAIRES ---
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def envoyer_mail_critique(demandeur, ligne, machine, action):
+    """Envoie un mail d'alerte quand une DAT CRITIQUE est soumise."""
+    try:
+        cfg = st.secrets["email"]
+        
+        msg = MIMEMultipart()
+        msg["From"] = cfg["expediteur"]
+        msg["To"] = cfg["destinataire"]
+        msg["Subject"] = "🚨 ALERTE DAT CRITIQUE - CILAM PLF"
+        
+        corps = f"""
+        <h2 style="color:red;">⚠️ Demande d'Action Technique CRITIQUE</h2>
+        <table>
+            <tr><td><b>Demandeur :</b></td><td>{demandeur}</td></tr>
+            <tr><td><b>Ligne :</b></td><td>{ligne}</td></tr>
+            <tr><td><b>Machine :</b></td><td>{machine}</td></tr>
+            <tr><td><b>Action demandée :</b></td><td>{action}</td></tr>
+            <tr><td><b>Date :</b></td><td>{datetime.now().strftime("%d/%m/%Y %H:%M")}</td></tr>
+        </table>
+        <p>Merci de traiter cette demande en priorité.</p>
+        """
+        
+        msg.attach(MIMEText(corps, "html"))
+        
+        with smtplib.SMTP(cfg["smtp_server"], cfg["smtp_port"]) as server:
+            server.starttls()
+            server.login(cfg["expediteur"], cfg["mot_de_passe"])
+            server.sendmail(cfg["expediteur"], cfg["destinataire"], msg.as_string())
+        
+        return True
+    except Exception as e:
+        st.warning(f"Mail non envoyé : {e}")
+        return False
+
 def to_excel_history(df):
     output = io.BytesIO()
     # On retire la colonne photo pour l'Excel car le binaire n'est pas lisible ainsi
