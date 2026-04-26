@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import io
 import streamlit_authenticator as stauth
 from PIL import Image
-from streamlit_mic_recorder import speech_to_text
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Maintenance CILAM PLF", layout="wide", page_icon="🛠️")
@@ -35,11 +34,6 @@ try:
 except sqlite3.OperationalError:
     # La colonne existe déjà, on ne fait rien
     pass
-# Migration automatique pour les colonnes manquantes
-try:
-    c.execute("ALTER TABLE interventions ADD COLUMN photo BLOB")
-except sqlite3.OperationalError:
-    pass
 
 try:
     c.execute("ALTER TABLE preventif_plan ADD COLUMN pieces_necessaires TEXT")
@@ -47,8 +41,16 @@ try:
 except sqlite3.OperationalError:
     pass
 # Création de la table stock
+
 c.execute('''CREATE TABLE IF NOT EXISTS stock 
              (code_mag TEXT PRIMARY KEY, code_fournisseur TEXT, designation TEXT, qte REAL, min REAL, prix REAL)''')
+
+# Migration : ajout colonne machine si absente
+try:
+    c.execute("ALTER TABLE stock ADD COLUMN machine TEXT")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
 
 conn.commit()
 
@@ -162,35 +164,24 @@ def compress_image(image_file, qualite="Basse"):
     img = Image.open(image_file)
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
-    
-    # Définition du taux de compression
     val_qualite = 20 if qualite == "Basse" else 85
-    
     buffer = io.BytesIO()
     img.save(buffer, format="JPEG", quality=val_qualite, optimize=True)
     return buffer.getvalue()
-
-    lignes = get_config("Ligne")
-    options_ligne = (["Toutes"] + lignes) if inclure_toutes else lignes
-    idx_l = options_ligne.index(ligne_defaut) if ligne_defaut in options_ligne else 0
-    ligne = st.selectbox("Ligne", options_ligne, index=idx_l, key=f"{prefixe}_ligne")
-    if ligne != "Toutes":
-        machines = get_config(f"Machine_{ligne}")
-        options_mach = (["Toutes"] + machines) if inclure_toutes else machines
-        idx_m = options_mach.index(machine_defaut) if machine_defaut in options_mach else 0
-        machine = st.selectbox("Machine", options_mach, index=idx_m, key=f"{prefixe}_mach")
-    else:
-        machine = "Toutes"
-        st.selectbox("Machine", ["Sélectionner une ligne"], disabled=True, key=f"{prefixe}_mach_dis")
-    return ligne, machine
-
+    
+try:
+    from streamlit_mic_recorder import speech_to_text
+    VOICE_AVAILABLE = True
+except ImportError:
+    VOICE_AVAILABLE = False
 
 def saisie_vocale(label="Cliquez pour parler"):
-    """Affiche un bouton micro et retourne le texte transcrit."""
+    if not VOICE_AVAILABLE:
+        return None
     text = speech_to_text(
-        language='fr', 
-        start_prompt="🎤 " + label, 
-        stop_prompt="🛑 Arrêter", 
+        language='fr',
+        start_prompt="🎤 " + label,
+        stop_prompt="🛑 Arrêter",
         key=f"voice_{label.replace(' ', '_')}"
     )
     return text
