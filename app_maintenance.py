@@ -510,15 +510,20 @@ if st.session_state["authentication_status"]:
                 at_s, li_s, ma_s = selecteur_atelier_ligne_machine("dat_crea", inclure_toutes=False)
                 d_demandeur = st.text_input("Nom du demandeur", value=user_full_name)
                 d_urgence = st.selectbox("Niveau d'urgence", ["Basse", "Moyenne", "Haute", "CRITIQUE"])
+                d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
+                choix_qualite_dat = st.radio("Qualité photo", ["Basse", "Haute"], horizontal=True)
+                photo_dat = st.camera_input("📸 Photo du problème")
             with col2:
                 v_action = saisie_vocale("Détails de l'action")
                 d_action = st.text_area("Action demandée détaillée", value=v_action if v_action else "")
-                d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
-            
+
             if st.button("Soumettre la DAT"):
-                c.execute("""INSERT INTO dat (date_creation, demandeur, atelier, ligne, machine, urgence, action, statut, auteur) 
-                          VALUES (?,?,?,?,?,?,?,?,?)""",
-                          (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
+                img_blob_dat = compress_image(photo_dat, qualite=choix_qualite_dat) if photo_dat else None
+
+                c.execute("""INSERT INTO dat (date_creation, demandeur, atelier, ligne, machine, urgence, action, statut, auteur, photo) 
+                          VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                          (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, 
+                           d_urgence, d_action, "Ouvert", user_id, img_blob_dat))
                 conn.commit()
                 st.success("✅ DAT enregistrée !")
                 
@@ -527,6 +532,7 @@ if st.session_state["authentication_status"]:
                         succes = envoyer_mail_critique(d_demandeur, at_s, li_s, ma_s, d_action)
                         if succes:
                             st.error("🚨 Alerte mail envoyée au responsable !")
+
         
         with t_liste:
             df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
