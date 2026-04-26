@@ -473,9 +473,10 @@ if st.session_state["authentication_status"]:
                 d_action = st.text_area("Action demandée détaillée", value=v_action if v_action else "")
                 
                 d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
-            if st.button("Soumettre la DAT"):
-                c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
-                          VALUES (?,?,?,?,?,?,?,?)""", (str(datetime.now().date()), d_demandeur, d_ligne, d_mach, d_urgence, d_action, "Ouvert", user_id))
+   if st.button("Soumettre la DAT"):
+    c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
+              VALUES (?,?,?,?,?,?,?,?)""", (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
+
                 conn.commit()
                 st.success("DAT enregistrée !")
         with t_liste:
