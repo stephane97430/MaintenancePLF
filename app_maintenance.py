@@ -21,9 +21,22 @@ c.execute('''CREATE TABLE IF NOT EXISTS users
 c.execute('''CREATE TABLE IF NOT EXISTS interventions 
              (id INTEGER PRIMARY KEY, date TEXT, type TEXT, duree REAL, ligne TEXT, machine TEXT, 
               techniciens TEXT, statut TEXT, probleme TEXT, solution TEXT, remarque TEXT, auteur TEXT, photo BLOB)''')
+# Création table dat avec toutes les colonnes
 c.execute('''CREATE TABLE IF NOT EXISTS dat 
-             (id INTEGER PRIMARY KEY, date_creation TEXT, demandeur TEXT, ligne TEXT, machine TEXT, 
-              urgence TEXT, action TEXT, tech_suivi TEXT, commentaire TEXT, echeance TEXT, statut TEXT, auteur TEXT)''')
+             (id INTEGER PRIMARY KEY, date_creation TEXT, demandeur TEXT, 
+              atelier TEXT, ligne TEXT, machine TEXT, urgence TEXT, action TEXT, 
+              tech_suivi TEXT, commentaire TEXT, echeance TEXT, statut TEXT, 
+              auteur TEXT, photo BLOB)''')
+
+# Migrations pour base existante — ajout des colonnes manquantes une par une
+for colonne, type_col in [("atelier", "TEXT"), ("photo", "BLOB"), 
+                           ("tech_suivi", "TEXT"), ("commentaire", "TEXT"), 
+                           ("echeance", "TEXT")]:
+    try:
+        c.execute(f"ALTER TABLE dat ADD COLUMN {colonne} {type_col}")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
 c.execute('''CREATE TABLE IF NOT EXISTS config (type TEXT, nom TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS preventif_plan 
              (id INTEGER PRIMARY KEY, ligne TEXT, machine TEXT, tache TEXT, frequence_jours INTEGER, 
