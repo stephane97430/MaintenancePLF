@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import io
 import streamlit_authenticator as stauth
 from PIL import Image
+from streamlit_mic_recorder import speech_to_text
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Maintenance CILAM PLF", layout="wide", page_icon="🛠️")
@@ -182,7 +183,7 @@ def compress_image(image_file, qualite="Basse"):
         machine = "Toutes"
         st.selectbox("Machine", ["Sélectionner une ligne"], disabled=True, key=f"{prefixe}_mach_dis")
     return ligne, machine
-from streamlit_mic_recorder import speech_to_text
+
 
 def saisie_vocale(label="Cliquez pour parler"):
     """Affiche un bouton micro et retourne le texte transcrit."""
