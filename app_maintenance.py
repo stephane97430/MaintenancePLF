@@ -511,36 +511,28 @@ if st.session_state["authentication_status"]:
                 d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
             
             if st.button("Soumettre la DAT"):
-                c.execute("""INSERT INTO dat (date_creation, demandeur, atelier, ligne, machine, urgence, action, statut, auteur) 
+                c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
                           VALUES (?,?,?,?,?,?,?,?)""",
-                          (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
+                          (str(datetime.now().date()), d_demandeur, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
                 conn.commit()
-                st.success("DAT enregistrée !")
-    # --- ENVOI MAIL SI CRITIQUE ---
-    if d_urgence == "CRITIQUE":
-        with st.spinner("Envoi de l'alerte mail..."):
-            succes = envoyer_mail_critique(d_demandeur, li_s, ma_s, d_action)
-            if succes:
-                st.error("🚨 Alerte mail envoyée au responsable !")
+                st.success("✅ DAT enregistrée !")
+                
+                if d_urgence == "CRITIQUE":
+                    with st.spinner("Envoi de l'alerte mail..."):
+                        succes = envoyer_mail_critique(d_demandeur, li_s, ma_s, d_action)
+                        if succes:
+                            st.error("🚨 Alerte mail envoyée au responsable !")
+        
         with t_liste:
             df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
-            edited_dat = st.data_editor(df_dat, use_container_width=True, num_rows="dynamic" if is_admin else "fixed")
+            edited_dat = st.data_editor(
+                df_dat, 
+                use_container_width=True, 
+                num_rows="dynamic" if is_admin else "fixed"
+            )
             if st.button("Sauvegarder les modifications DAT"):
                 edited_dat.to_sql("dat", conn, if_exists="replace", index=False)
-                st.success("Données synchronisées.")
-
-    # --- F. STATISTIQUES ---
-    elif menu == "📈 Statistiques":
-        st.header("📊 Analyse d'Activité")
-        df_stats = pd.read_sql("SELECT * FROM interventions", conn)
-        if not df_stats.empty:
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                st.plotly_chart(px.pie(df_stats, names='type', title="Répartition par Type"), use_container_width=True)
-            with col_s2:
-                st.plotly_chart(px.bar(df_stats, x='ligne', y='duree', color='type', title="Temps passé par Ligne"), use_container_width=True)
-        else:
-            st.info("Aucune donnée pour les statistiques.")
+                st.success("✅ Données synchronisées.")
 
 # --- H. CONFIGURATION (ADMIN) ---
     elif menu == "⚙️ Configuration":
