@@ -30,6 +30,11 @@ c.execute('''CREATE TABLE IF NOT EXISTS preventif_plan
               derniere_date TEXT, prochaine_date TEXT, pieces_necessaires TEXT, temps_estime REAL DEFAULT 0, technicien_prev TEXT)''')
 
 try:
+    c.execute("ALTER TABLE dat ADD COLUMN photo BLOB")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
+try:
     c.execute("ALTER TABLE stock ADD COLUMN machine TEXT")
     conn.commit()
 except sqlite3.OperationalError:
