@@ -511,12 +511,17 @@ if st.session_state["authentication_status"]:
                 d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
             
             if st.button("Soumettre la DAT"):
-                c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
+                c.execute("""INSERT INTO dat (date_creation, demandeur, atelier, ligne, machine, urgence, action, statut, auteur) 
                           VALUES (?,?,?,?,?,?,?,?)""",
-                          (str(datetime.now().date()), d_demandeur, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
+                          (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
                 conn.commit()
                 st.success("DAT enregistrée !")
-        
+    # --- ENVOI MAIL SI CRITIQUE ---
+    if d_urgence == "CRITIQUE":
+        with st.spinner("Envoi de l'alerte mail..."):
+            succes = envoyer_mail_critique(d_demandeur, li_s, ma_s, d_action)
+            if succes:
+                st.error("🚨 Alerte mail envoyée au responsable !")
         with t_liste:
             df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
             edited_dat = st.data_editor(df_dat, use_container_width=True, num_rows="dynamic" if is_admin else "fixed")
