@@ -348,9 +348,9 @@ if st.session_state["authentication_status"]:
 # --- C. GESTION DE STOCK ---
     elif menu == "📦 Gestion de Stock":
         st.header("📦 Gestion du Stock Pièces Détachées")
-        # Ajout de l'onglet "📥 Import Excel" dans la liste ci-dessous
-        t_stock, t_ajout, t_import = st.tabs(["📋 Inventaire", "➕ Nouvelle Référence", "📥 Import Excel"])
-        
+        # Ajout de l'onglet "📥 Import Excel" dans la liste 
+        t_stock, t_ajout, t_import, t_excel = st.tabs(["📋 Inventaire", "➕ Nouvelle Référence", "📥 Import Excel", "📊 Export"])
+
         with t_stock:
             df_stock = pd.read_sql("SELECT * FROM stock", conn)
             if not df_stock.empty:
