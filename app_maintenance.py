@@ -536,14 +536,50 @@ if st.session_state["authentication_status"]:
         
         with t_liste:
             df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
-            edited_dat = st.data_editor(
-                df_dat, 
-                use_container_width=True, 
-                num_rows="dynamic" if is_admin else "fixed"
-            )
-            if st.button("Sauvegarder les modifications DAT"):
-                edited_dat.to_sql("dat", conn, if_exists="replace", index=False)
-                st.success("✅ Données synchronisées.")
+            
+            # --- Filtres ---
+            col_f1, col_f2 = st.columns(2)
+            f_statut  = col_f1.selectbox("Filtrer par statut",  ["Tous", "Ouvert", "En cours", "Clôturé"])
+            f_urgence = col_f2.selectbox("Filtrer par urgence", ["Toutes", "Basse", "Moyenne", "Haute", "CRITIQUE"])
+            
+            df_filtre = df_dat.copy()
+            if f_statut  != "Tous":    df_filtre = df_filtre[df_filtre['statut']  == f_statut]
+            if f_urgence != "Toutes":  df_filtre = df_filtre[df_filtre['urgence'] == f_urgence]
+
+            # --- Affichage carte par carte ---
+            for _, row in df_filtre.iterrows():
+                couleur = {"CRITIQUE": "🔴", "Haute": "🟠", "Moyenne": "🟡", "Basse": "🟢"}.get(row['urgence'], "⚪")
+                with st.expander(f"{couleur} DAT #{row['id']} — {row['date_creation']} — {row['machine']} — {row['urgence']}"):
+                    c1, c2 = st.columns([3, 1])
+                    c1.write(f"**Demandeur :** {row['demandeur']}")
+                    c1.write(f"**Atelier :** {row['atelier']} | **Ligne :** {row['ligne']}")
+                    c1.write(f"**Action :** {row['action']}")
+                    c1.write(f"**Statut actuel :** {row['statut']}")
+                    
+                    # Affichage photo si présente
+                    if row['photo'] is not None:
+                        c2.image(row['photo'], caption="📸 Photo", use_container_width=True)
+                    else:
+                        c2.info("Pas de photo")
+
+                    # Modification réservée à l'admin
+                    if is_admin:
+                        nouveau_statut = c1.selectbox(
+                            "Changer le statut",
+                            ["Ouvert", "En cours", "Clôturé"],
+                            index=["Ouvert", "En cours", "Clôturé"].index(row['statut']) 
+                                  if row['statut'] in ["Ouvert", "En cours", "Clôturé"] else 0,
+                            key=f"statut_dat_{row['id']}"
+                        )
+                        col_b1, col_b2 = c1.columns(2)
+                        if col_b1.button("💾 Mettre à jour", key=f"maj_dat_{row['id']}"):
+                            c.execute("UPDATE dat SET statut=? WHERE id=?", (nouveau_statut, row['id']))
+                            conn.commit()
+                            st.rerun()
+                        if col_b2.button("🗑️ Supprimer", key=f"del_dat_{row['id']}"):
+                            c.execute("DELETE FROM dat WHERE id=?", (row['id'],))
+                            conn.commit()
+                            st.rerun()
 
 # --- H. CONFIGURATION (ADMIN) ---
     elif menu == "⚙️ Configuration":
