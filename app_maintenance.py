@@ -444,6 +444,17 @@ if st.session_state["authentication_status"]:
                         conn.commit()
                         st.rerun()
             
+# --- AJOUT DU BOUTON IMPORT ---
+        st.divider()
+        st.subheader("📥 Importation de données")
+        with st.expander("Importer un historique (Fichier Excel)"):
+            up_hist = st.file_uploader("Choisir un fichier .xlsx", type=["xlsx"], key="up_hist")
+            if up_hist and st.button("🚀 Lancer l'importation de l'historique"):
+                if import_excel_history(up_hist):
+                    st.success("L'historique a été importé avec succès !")
+                    st.rerun()
+        
+        # Le bouton d'export existant
         st.download_button("📥 Télécharger Excel (Données)", data=to_excel(df_hist), file_name="historique_plf.xlsx")
 
     # --- E. GESTION DAT ---
