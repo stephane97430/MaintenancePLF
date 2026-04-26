@@ -519,7 +519,7 @@ if st.session_state["authentication_status"]:
                 
                 if d_urgence == "CRITIQUE":
                     with st.spinner("Envoi de l'alerte mail..."):
-                        succes = envoyer_mail_critique(d_demandeur, li_s, ma_s, d_action)
+                        succes = envoyer_mail_critique(d_demandeur, at_s, li_s, ma_s, d_action)
                         if succes:
                             st.error("🚨 Alerte mail envoyée au responsable !")
         
