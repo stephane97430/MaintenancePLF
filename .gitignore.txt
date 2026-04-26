@@ -1,1 +1,1 @@
-*.db
+maintenance_plf.db
