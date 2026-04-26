@@ -496,46 +496,6 @@ if st.session_state["authentication_status"]:
                 st.plotly_chart(px.bar(df_stats, x='ligne', y='duree', color='type', title="Temps passé par Ligne"), use_container_width=True)
         else:
             st.info("Aucune donnée pour les statistiques.")
-# --- G. GESTION DE STOCK ---
-    elif menu == "📦 Gestion de Stock":
-        st.header("📦 Inventaire des Pièces Détachées")
-        t_stock, t_ajout = st.tabs(["📋 État du Stock", "➕ Ajouter une Pièce"])
-        
-        with t_stock:
-            df_stock = pd.read_sql("SELECT * FROM stock", conn)
-            # Mise en évidence des stocks bas (Alerte si QTE < MIN)
-            def highlight_min(s):
-                return ['background-color: #ffcccc' if s.qte < s.min else '' for _ in s]
-            
-            if not df_stock.empty:
-                st.dataframe(df_stock.style.apply(highlight_min, axis=1), use_container_width=True)
-                
-                if is_admin:
-                    st.subheader("Modifier le stock")
-                    edited_stock = st.data_editor(df_stock, use_container_width=True, num_rows="dynamic", key="editor_stock")
-                    if st.button("Enregistrer les modifications"):
-                        edited_stock.to_sql("stock", conn, if_exists="replace", index=False)
-                        st.success("Stock mis à jour.")
-                        st.rerun()
-            else:
-                st.info("Le stock est vide.")
-
-        with t_ajout:
-            with st.form("ajout_piece"):
-                col1, col2 = st.columns(2)
-                code_mag = col1.text_input("CODE MAG (Identifiant unique)")
-                code_fourn = col1.text_input("CODE FOURNISSEUR")
-                desig = col1.text_input("DESIGNATION")
-                qte_ini = col2.number_input("Quantité en stock", min_value=0.0)
-                qte_min = col2.number_input("Seuil Minimum (Alerte)", min_value=0.0)
-                prix_u = col2.number_input("Prix Unitaire", min_value=0.0)
-                
-                if st.form_submit_button("Ajouter au catalogue"):
-                    if code_mag and desig:
-                        c.execute("INSERT INTO stock VALUES (?,?,?,?,?,?)", (code_mag, code_fourn, desig, qte_ini, qte_min, prix_u))
-                        conn.commit()
-                        st.success(f"Pièce {code_mag} ajoutée !")
-                        st.rerun()
 
 # --- H. CONFIGURATION (ADMIN) ---
     elif menu == "⚙️ Configuration":
