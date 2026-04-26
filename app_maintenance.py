@@ -356,7 +356,8 @@ if st.session_state["authentication_status"]:
 # --- C. GESTION DE STOCK ---
     elif menu == "📦 Gestion de Stock":
         st.header("📦 Gestion du Stock Pièces Détachées")
-        t_stock, t_ajout, t_excel = st.tabs(["📋 Inventaire", "➕ Nouvelle Référence", "📥 Inventaire (Excel)"])
+        # Ajout de l'onglet "📥 Import Excel" dans la liste ci-dessous
+        t_stock, t_ajout, t_import = st.tabs(["📋 Inventaire", "➕ Nouvelle Référence", "📥 Import Excel"])
         
         with t_stock:
             df_stock = pd.read_sql("SELECT * FROM stock", conn)
@@ -376,7 +377,6 @@ if st.session_state["authentication_status"]:
                 c_fourn = c1.text_input("CODE FOURNISSEUR")
                 desig = c1.text_input("DESIGNATION")
                 with c2:
-                    # On récupère la ligne et machine via votre fonction existante
                     at_s, li_s, ma_s = selecteur_atelier_ligne_machine("stock_add", inclure_toutes=False)
                     q_ini = st.number_input("Quantité actuelle", min_value=0.0)
                     q_min = st.number_input("Seuil d'alerte", min_value=0.0)
@@ -388,6 +388,18 @@ if st.session_state["authentication_status"]:
                                   (c_mag, c_fourn, desig, q_ini, q_min, px_u, ma_s))
                         conn.commit()
                         st.success(f"Pièce ajoutée pour {ma_s}")
+                        st.rerun()
+
+        # --- NOUVEAU BLOC POUR L'IMPORT ---
+        with t_import:
+            st.subheader("Mise à jour massive via Excel")
+            st.info("Le fichier Excel doit contenir au minimum les colonnes : 'code_mag' et 'qte'.")
+            
+            up_stock = st.file_uploader("Choisir le fichier d'inventaire", type=["xlsx"], key="up_stock_file")
+            if up_stock:
+                if st.button("🚀 Lancer la mise à jour du stock"):
+                    if import_excel_stock(up_stock):
+                        st.success("Le stock a été mis à jour avec succès !")
                         st.rerun()
 
         with t_excel:
