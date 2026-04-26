@@ -460,6 +460,7 @@ if st.session_state["authentication_status"]:
     elif menu == "📝 Gestion DAT":
         st.header("📝 Demandes d'Actions Techniques")
         t_crea, t_liste = st.tabs(["➕ Créer une DAT", "📋 Liste des demandes"])
+        
         with t_crea:
             col1, col2 = st.columns(2)
             with col1:
@@ -467,16 +468,17 @@ if st.session_state["authentication_status"]:
                 d_demandeur = st.text_input("Nom du demandeur", value=user_full_name)
                 d_urgence = st.selectbox("Niveau d'urgence", ["Basse", "Moyenne", "Haute", "CRITIQUE"])
             with col2:
-                # --- Action demandée avec Option Vocale ---
                 v_action = saisie_vocale("Détails de l'action")
                 d_action = st.text_area("Action demandée détaillée", value=v_action if v_action else "")
                 d_echeance = st.date_input("Date d'échéance souhaitée", datetime.now() + timedelta(days=7))
-   if st.button("Soumettre la DAT"):
-    c.execute("""INSERT INTO dat (date_creation, demandeur, atelier, ligne, machine, urgence, action, statut, auteur) 
-              VALUES (?,?,?,?,?,?,?,?)""", (str(datetime.now().date()), d_demandeur, at_s, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
-
+            
+            if st.button("Soumettre la DAT"):
+                c.execute("""INSERT INTO dat (date_creation, demandeur, ligne, machine, urgence, action, statut, auteur) 
+                          VALUES (?,?,?,?,?,?,?,?)""",
+                          (str(datetime.now().date()), d_demandeur, li_s, ma_s, d_urgence, d_action, "Ouvert", user_id))
                 conn.commit()
                 st.success("DAT enregistrée !")
+        
         with t_liste:
             df_dat = pd.read_sql("SELECT * FROM dat ORDER BY id DESC", conn)
             edited_dat = st.data_editor(df_dat, use_container_width=True, num_rows="dynamic" if is_admin else "fixed")
