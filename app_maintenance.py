@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime, timedelta
 import io
 import streamlit_authenticator as stauth
+from streamlit_mic_recorder import speech_to_text
 from PIL import Image
 
 # --- 1. CONFIGURATION DE LA PAGE ---
