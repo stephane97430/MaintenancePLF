@@ -482,9 +482,9 @@ if st.session_state["authentication_status"]:
             query += " AND type = ?"; db_params.append(h_type)
         if h_search:
             query += " AND (probleme LIKE ? OR solution LIKE ?)"; db_params.extend([f"%{h_search}%", f"%{h_search}%"])
-        
+
         df_hist = pd.read_sql(query + " ORDER BY id DESC", conn, params=db_params)
-        
+
         for _, row in df_hist.iterrows():
             with st.expander(f"🛠️ {row['date']} - {row['machine']} - {row['type']}"):
                 c1, c2 = st.columns([3, 1])
@@ -492,18 +492,28 @@ if st.session_state["authentication_status"]:
                 c1.write(f"**Problème :** {row['probleme']}")
                 c1.write(f"**Solution :** {row['solution']}")
                 if row['photo'] is not None:
-    try:
-        photo_bytes = bytes(row['photo'])
-        c2.image(photo_bytes, caption="📸 Photo", use_container_width=True)
-    except Exception as e:
-        c2.warning(f"Photo illisible : {e}")
-else:
-    c2.info("📷 Pas de photo")
+                    try:
+                        c2.image(bytes(row['photo']), caption="📸 Photo", use_container_width=True)
+                    except Exception as e:
+                        c2.warning(f"Photo illisible : {e}")
+                else:
+                    c2.info("📷 Pas de photo")
                 if is_admin:
                     if st.button(f"🗑️ Supprimer {row['id']}", key=f"del_{row['id']}"):
                         c.execute("DELETE FROM interventions WHERE id=?", (row['id'],))
                         conn.commit()
                         st.rerun()
+
+        st.divider()
+        st.subheader("📥 Importation de données")
+        with st.expander("Importer un historique (Fichier Excel)"):
+            up_hist = st.file_uploader("Choisir un fichier .xlsx", type=["xlsx"], key="up_hist")
+            if up_hist and st.button("🚀 Lancer l'importation de l'historique"):
+                if import_excel_history(up_hist):
+                    st.success("L'historique a été importé avec succès !")
+                    st.rerun()
+
+        st.download_button("📥 Télécharger Excel (Données)", data=to_excel(df_hist), file_name="historique_plf.xlsx")
             
 # --- AJOUT DU BOUTON IMPORT ---
         st.divider()
